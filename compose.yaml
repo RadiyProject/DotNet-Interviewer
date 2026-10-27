@@ -1,0 +1,47 @@
+name: interview-lab
+services:
+  ai-bridge:
+    build:
+      context: .
+      dockerfile: tools/codex-bridge.Dockerfile
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ./tools:/workspace/tools:ro
+      - ./trainer:/workspace/trainer:ro
+      - codex-auth:/home/node/.codex
+    restart: unless-stopped
+    init: true
+  runner-image:
+    image: interview-lab-runner:local
+    build:
+      context: .
+      dockerfile: trainer/runner/Dockerfile
+    entrypoint: ["true"]
+    restart: "no"
+  app:
+    build:
+      context: .
+      dockerfile: trainer/Dockerfile
+    command: ["python", "dev.py"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - progress:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./trainer:/app:ro
+      - nuget:/nuget:ro
+    environment:
+      DATA_DIR: /data
+      RUNNER_IMAGE: interview-lab-runner:local
+      NUGET_VOLUME: interview-lab-nuget
+    depends_on:
+      runner-image:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    init: true
+volumes:
+  codex-auth:
+  progress:
+  nuget:
+    name: interview-lab-nuget

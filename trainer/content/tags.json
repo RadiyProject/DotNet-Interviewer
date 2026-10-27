@@ -1,0 +1,74 @@
+{
+  "fintech": {
+    "ru": "Финтех",
+    "en": "Fintech"
+  },
+  "e-commerce": {
+    "ru": "Электронная коммерция",
+    "en": "E-commerce"
+  },
+  "platform": {
+    "ru": "Платформенные сервисы",
+    "en": "Platform services"
+  },
+  "cloud": {
+    "ru": "Облака",
+    "en": "Cloud"
+  },
+  "ai": {
+    "ru": "AI",
+    "en": "AI"
+  },
+  "data-engineering": {
+    "ru": "Обработка данных",
+    "en": "Data engineering"
+  },
+  "security": {
+    "ru": "Безопасность",
+    "en": "Security"
+  },
+  "distributed-systems": {
+    "ru": "Распределённые системы",
+    "en": "Distributed systems"
+  },
+  "concurrency": {
+    "ru": "Конкурентность",
+    "en": "Concurrency"
+  },
+  "performance": {
+    "ru": "Производительность",
+    "en": "Performance"
+  },
+  "testing": {
+    "ru": "Тестирование",
+    "en": "Testing"
+  },
+  "api": {
+    "ru": "API и HTTP",
+    "en": "API & HTTP"
+  },
+  "databases": {
+    "ru": "Базы данных",
+    "en": "Databases"
+  },
+  "algorithms": {
+    "ru": "Алгоритмы",
+    "en": "Algorithms"
+  },
+  "devops": {
+    "ru": "DevOps",
+    "en": "DevOps"
+  },
+  "git": {
+    "ru": "Git",
+    "en": "Git"
+  },
+  "architecture": {
+    "ru": "Архитектура",
+    "en": "Architecture"
+  },
+  "fundamentals": {
+    "ru": "Основы .NET",
+    "en": ".NET fundamentals"
+  }
+}

@@ -1,0 +1,16 @@
+trainer/data/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
+!.env.sample
+node_modules/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.log
+/*.html
+/*.zip

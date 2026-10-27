@@ -1,0 +1,616 @@
+{
+  "reviewedAt": "2026-10-24",
+  "sections": [
+    {
+      "label": "LEARNING PATH / 2026",
+      "title": ".NET roadmap: foundation and preparation procedures",
+      "focus": "C# → SQL → messaging → deployment in one cloud and CI. AI tooling - working tool; frontend - additional branch by role. Roadmap helps you prioritize rather than requiring knowledge of each product.",
+      "practice": "Base: T01, C16–C18, C24–C25, T14, A29–A34. Addition: Q159–Q164, A50–A51.",
+      "links": [
+        {
+          "title": "Milan Jovanović: .NET roadmap 2026",
+          "url": "https://milanjovanovic.tech/roadmaps/2026_dotnet_roadmap.png",
+          "type": "author's map"
+        },
+        {
+          "title": "GitHub Actions: OIDC",
+          "url": "https://docs.github.com/en/actions/concepts/security/openid-connect",
+          "type": "officially"
+        },
+        {
+          "title": "Azure Service Bus settlement",
+          "url": "https://learn.microsoft.com/en-us/azure/service-bus-messaging/message-transfers-locks-settlement",
+          "type": "officially"
+        },
+        {
+          "title": "AWS SQS Standard",
+          "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html",
+          "type": "officially"
+        },
+        {
+          "title": "pgvector",
+          "url": "https://github.com/pgvector/pgvector",
+          "type": "developer repository"
+        }
+      ]
+    },
+    {
+      "label": "01 / FOUNDATIONS",
+      "title": "C#, runtime and resources",
+      "focus": "Model accuracy: polymorphism, reference/value, GC, ownership. The book is deepening, the documentation is current semantics.",
+      "links": [
+        {
+          "title": "C# documentation",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/",
+          "type": "officially"
+        },
+        {
+          "title": "Dispose pattern",
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose",
+          "type": "officially"
+        },
+        {
+          "title": "C# in Depth · Jon Skeet",
+          "url": "https://csharpindepth.com/",
+          "type": "book / author's website"
+        }
+      ],
+      "practice": "T12, C07, Q001–Q006"
+    },
+    {
+      "label": "02 / ASYNC & HTTP",
+      "title": "Async, contention and HTTP",
+      "focus": "Separate I/O concurrency from CPU parallelism; formulate deadline, ownership and retry budget.",
+      "links": [
+        {
+          "title": "Async programming",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/",
+          "type": "officially"
+        },
+        {
+          "title": "HttpClient guidelines",
+          "url": "https://learn.microsoft.com/en-us/dotnet/fundamentals/networking/http/httpclient-guidelines",
+          "type": "officially"
+        },
+        {
+          "title": "HTTP resilience",
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience",
+          "type": "officially"
+        },
+        {
+          "title": "ThreadPool starvation",
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/diagnostics/debug-threadpool-starvation",
+          "type": "diagnostics"
+        }
+      ],
+      "practice": "T01, C05, C06, A05"
+    },
+    {
+      "label": "03 / DATA",
+      "title": "SQL, indexes and transactions",
+      "focus": "Write requests by hand. First correctness on a small set, then plans and performance on a large cardinality.",
+      "links": [
+        {
+          "title": "PostgreSQL tutorial",
+          "url": "https://www.postgresql.org/docs/18/tutorial.html",
+          "type": "officially"
+        },
+        {
+          "title": "PostgreSQL isolation",
+          "url": "https://www.postgresql.org/docs/18/transaction-iso.html",
+          "type": "officially"
+        },
+        {
+          "title": "PostgreSQL indexes",
+          "url": "https://www.postgresql.org/docs/18/indexes.html",
+          "type": "officially"
+        },
+        {
+          "title": "SQLite language",
+          "url": "https://www.sqlite.org/lang.html",
+          "type": "officially"
+        },
+        {
+          "title": "SQL Server clustered indexes",
+          "url": "https://learn.microsoft.com/en-us/sql/relational-databases/indexes/clustered-and-nonclustered-indexes-described",
+          "type": "different dialect"
+        }
+      ],
+      "practice": "SQL01–SQL08 in PostgreSQL and SQLite; T09"
+    },
+    {
+      "label": "04 / TESTABILITY",
+      "title": "EF Core, DI and testing",
+      "focus": "The test must prove the desired property. Mock does not replace the SQL provider's validation; scoped does not mean thread-safe.",
+      "links": [
+        {
+          "title": "EF testing strategy",
+          "url": "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy",
+          "type": "officially"
+        },
+        {
+          "title": "Efficient querying",
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying",
+          "type": "officially"
+        },
+        {
+          "title": "DI guidelines",
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines",
+          "type": "officially"
+        },
+        {
+          "title": "Options pattern",
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/options",
+          "type": "officially"
+        },
+        {
+          "title": "NSubstitute",
+          "url": "https://nsubstitute.github.io/help/getting-started/",
+          "type": "project documentation"
+        }
+      ],
+      "practice": "T04, T08, T10, A04, A08"
+    },
+    {
+      "label": "05 / SYSTEMS",
+      "title": "System design and reliability",
+      "focus": "Start with requirements and invariants; justify storage and consistency; show failure behavior.",
+      "links": [
+        {
+          "title": "Google Site Reliability Engineering",
+          "url": "https://sre.google/sre-book/table-of-contents/",
+          "type": "free google book"
+        },
+        {
+          "title": "Azure Architecture Center",
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/",
+          "type": "officially"
+        },
+        {
+          "title": "Designing Data-Intensive Applications",
+          "url": "https://dataintensive.net/",
+          "type": "book / author's website"
+        },
+        {
+          "title": "System Design Primer",
+          "url": "https://github.com/donnemartin/system-design-primer",
+          "type": "community: navigation by topic"
+        }
+      ],
+      "practice": "T14, T15, A01–A06"
+    },
+    {
+      "label": "06 / CLOUD & SECURITY",
+      "title": "Azure, Kubernetes and security",
+      "focus": "Consider hosting plan, replay, tenant boundary and rights restrictions. Cloud limits change over time.",
+      "links": [
+        {
+          "title": "Functions hosting",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-functions/functions-scale",
+          "type": "officially"
+        },
+        {
+          "title": "Durable code constraints",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-code-constraints",
+          "type": "officially"
+        },
+        {
+          "title": "Kubernetes probes",
+          "url": "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/",
+          "type": "officially"
+        },
+        {
+          "title": "OWASP API Security",
+          "url": "https://owasp.org/API-Security/",
+          "type": "primary project standard"
+        },
+        {
+          "title": "MCP documentation",
+          "url": "https://modelcontextprotocol.io/docs/getting-started/intro",
+          "type": "specification/documentation"
+        }
+      ],
+      "practice": "T17, T19, A02, A07, A10"
+    },
+    {
+      "label": "07 / INTERVIEW EXPECTATIONS",
+      "title": "Company expectations and public practice",
+      "focus": "Hiring guides confirm areas of assessment. Repositories provide topics, but not proof that a specific company is asking the question.",
+      "links": [
+        {
+          "title": "Microsoft technical interviewing",
+          "url": "https://careers.microsoft.com/v2/global/en/hiring-tips/technical-interviewing.html",
+          "type": "official hiring guide"
+        },
+        {
+          "title": "Amazon software development topics",
+          "url": "https://amazon.jobs/content/en/how-we-hire/interview-prep/software-development-topics",
+          "type": "official hiring guide"
+        },
+        {
+          "title": "Tech Interview Handbook",
+          "url": "https://github.com/yangshun/tech-interview-handbook",
+          "type": "community / methodology"
+        },
+        {
+          "title": "dotnet interview topics",
+          "url": "https://github.com/StefanTheCode/dotnet_interview_questions",
+          "type": "community: check the answers with the documentation"
+        }
+      ],
+      "practice": "C01–C04, C08, A09; explain every decision out loud"
+    },
+    {
+      "label": "08 / EXPANSION · 24 OCT 2026",
+      "title": "Practical problems: .NET, SQL and architecture",
+      "focus": "New set: C10–C26, SQL09–SQL18 in two dialects, A11–A22 and Q059–Q082. All productions and data are copyrighted; collections are used as a map of topics, documentation - to test mechanisms.",
+      "links": [
+        {
+          "title": "Senior .NET topics · CodeWithMukesh",
+          "url": "https://codewithmukesh.com/blog/senior-dotnet-developer-interview-questions/",
+          "type": "selection: check controversial statements"
+        },
+        {
+          "title": "Senior .NET role topics · Hirebee",
+          "url": "https://hirebee.ai/hr-tool-and-template/senior-net-developer-2",
+          "type": "selection of fundamental topics"
+        },
+        {
+          "title": "PostgreSQL Exercises",
+          "url": "https://pgexercises.com/questions/aggregates/",
+          "type": "public SQL practice"
+        },
+        {
+          "title": "Ardalis kata catalog",
+          "url": "https://github.com/ardalis/kata-catalog",
+          "type": "code katas navigation"
+        },
+        {
+          "title": "dotnet/eShop",
+          "url": "https://github.com/dotnet/eShop",
+          "type": "official .NET reference application"
+        },
+        {
+          "title": "EF Core SQLite provider limitations",
+          "url": "https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations",
+          "type": "boundaries of a specific provider"
+        }
+      ],
+      "practice": "Start C16/C18/C24 → SQL12-PG/SQL13-PG → A13/A16/A21. PDF The .NET Senior Playbook is used as a topic map, chapters and limitations are described in docs/BANK_UPDATE_20261024.md."
+    },
+    {
+      "label": "ROLE / SENIOR .NET",
+      "title": "GoF, Dataflow and .NET Exploitation",
+      "focus": "Start with theory, solve a related problem against time, then work out boundaries and failure scenarios. All 23 GoFs are reflected in the preparation map; infrastructure cases are assessed using a rubric.",
+      "links": [
+        {
+          "title": "GoF: Design Patterns · publisher catalog",
+          "url": "https://www.informit.com/store/design-patterns-elements-of-reusable-object-oriented-9780201633610",
+          "type": "book/publisher"
+        },
+        {
+          "title": "GoF: pattern directory",
+          "url": "https://refactoring.guru/design-patterns/catalog",
+          "type": "secondary educational source"
+        },
+        {
+          "title": "TPL Dataflow",
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/dataflow-task-parallel-library",
+          "type": "officially"
+        },
+        {
+          "title": "EF Core: performance",
+          "url": "https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics",
+          "type": "officially"
+        },
+        {
+          "title": "PostgreSQL: range types",
+          "url": "https://www.postgresql.org/docs/18/rangetypes.html",
+          "type": "officially"
+        },
+        {
+          "title": "RabbitMQ: confirmations and acknowledgements",
+          "url": "https://www.rabbitmq.com/docs/confirms",
+          "type": "officially"
+        },
+        {
+          "title": "Kafka: design and guarantees",
+          "url": "https://kafka.apache.org/43/design/design/",
+          "type": "officially"
+        },
+        {
+          "title": "Docker: multi-stage builds",
+          "url": "https://docs.docker.com/build/building/multi-stage/",
+          "type": "officially"
+        },
+        {
+          "title": "Kubernetes: probes",
+          "url": "https://kubernetes.io/docs/concepts/workloads/pods/probes/",
+          "type": "officially"
+        }
+      ],
+      "practice": "C27–C38, SQL19-PG–SQL22-PG, Q083–Q102, A23–A34"
+    },
+    {
+      "label": "SYSTEM DESIGN / SERVICES",
+      "title": "Transfer service",
+      "focus": "Translations: local transaction, idempotency, locks, outbox and recovery from ambiguous timeout.",
+      "practice": "A35, SQL23-PG, Q103–Q104",
+      "links": [
+        {
+          "title": "PostgreSQL: locks",
+          "url": "https://www.postgresql.org/docs/18/explicit-locking.html",
+          "type": "original source"
+        },
+        {
+          "title": "Stripe: idempotency contract example",
+          "url": "https://docs.stripe.com/api/idempotent_requests",
+          "type": "original source"
+        },
+        {
+          "title": "Compensating transaction",
+          "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "SYSTEM DESIGN / SERVICES",
+      "title": "Load balancer",
+      "focus": "Load balancing for ASP.NET Core: algorithms, health, drain, forwarded headers and retries boundaries.",
+      "practice": "A36, C39, Q105–Q106",
+      "links": [
+        {
+          "title": "YARP: load balancing",
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/yarp/load-balancing?view=aspnetcore-10.0",
+          "type": "original source"
+        },
+        {
+          "title": "ASP.NET Core behind proxy",
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "SYSTEM DESIGN / SERVICES",
+      "title": "URL shortener",
+      "focus": "Short links: ID/code, collisions, cache policy, expiration and hot keys.",
+      "practice": "A37, C40, Q107–Q108",
+      "links": [
+        {
+          "title": "HTTP semantics / redirects",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+          "type": "original source"
+        },
+        {
+          "title": "PostgreSQL unique constraints",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "SYSTEM DESIGN / SERVICES",
+      "title": "Ledger service",
+      "focus": "Posting log: atomic posting, currency invariants, reversal and reconciliation of projections.",
+      "practice": "A38, SQL24-PG, Q109–Q110",
+      "links": [
+        {
+          "title": "TigerBeetle: data modeling",
+          "url": "https://docs.tigerbeetle.com/coding/data-modeling/",
+          "type": "original source"
+        },
+        {
+          "title": "PostgreSQL: constraints and limitations",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "INTERVIEW / CHECKED TOPICS",
+      "title": "ZTM and aam9063: questions with semantic checking",
+      "focus": "Collections are used as a topic map. Author's exercises and answers verified with Microsoft Learn; generalizations from the collections are not copied as technical guarantees.",
+      "practice": "Q111–Q122, C41–C42, A40–A41; also C16–C18, C24–C25, Q072–Q077",
+      "links": [
+        {
+          "title": "ZTM: .NET interview topics",
+          "url": "https://zerotomastery.io/blog/dot-net-interview-questions/",
+          "type": "secondary selection"
+        },
+        {
+          "title": "aam9063: ASP.NET Core interview topics",
+          "url": "https://github.com/aam9063/dotnet-interview-questions/blob/master/dotnet_questions.md",
+          "type": "public repository"
+        },
+        {
+          "title": "Microsoft: Options pattern",
+          "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/options",
+          "type": "original source"
+        },
+        {
+          "title": "Microsoft: Output cache",
+          "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/caching/output?view=aspnetcore-10.0",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "ENGINEERING / GIT",
+      "title": "Git: History, Collaboration, and Recovery",
+      "focus": "Distinguish between HEAD, index and working tree. First define the state and expected result, then choose a command. Practical cases are completed in a separate training repository.",
+      "practice": "Q123–Q134, A42–A43",
+      "links": [
+        {
+          "title": "Pro Git book in Russian",
+          "url": "https://git-scm.com/book/ru/v2",
+          "type": "officially"
+        },
+        {
+          "title": "Reset",
+          "url": "https://git-scm.com/docs/git-reset",
+          "type": "officially"
+        },
+        {
+          "title": "Rebase",
+          "url": "https://git-scm.com/docs/git-rebase",
+          "type": "officially"
+        },
+        {
+          "title": "Reflog",
+          "url": "https://git-scm.com/docs/git-reflog",
+          "type": "officially"
+        },
+        {
+          "title": "Push / force-with-lease",
+          "url": "https://git-scm.com/docs/git-push",
+          "type": "officially"
+        },
+        {
+          "title": "Bisect",
+          "url": "https://git-scm.com/docs/git-bisect",
+          "type": "officially"
+        }
+      ]
+    },
+    {
+      "label": "RUNTIME / VERIFIED CONCEPTS",
+      "title": "Ownership, Collections and GC: Model Validation",
+      "focus": "Read-only is not equal to immutable; value copy is not equal to deep copy; reference cycle is not equal to root; context is not equal to OS thread. The cheat sheet is used only as a topic map.",
+      "practice": "Q135–Q142, C43, A44",
+      "links": [
+        {
+          "title": "marcellusfarias: original cheat sheet",
+          "url": "https://github.com/marcellusfarias/interview-cheat-sheet",
+          "type": "secondary source / requires verification"
+        },
+        {
+          "title": "Microsoft: GC fundamentals",
+          "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals",
+          "type": "original source"
+        },
+        {
+          "title": "Microsoft: Method Parameters",
+          "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/method-parameters",
+          "type": "original source"
+        },
+        {
+          "title": "Microsoft: Mutex",
+          "url": "https://learn.microsoft.com/en-us/dotnet/api/system.threading.mutex",
+          "type": "original source"
+        }
+      ]
+    },
+    {
+      "label": "DATA / NOSQL",
+      "title": "NoSQL / MongoDB",
+      "focus": "Document model, embedding/reference, conditional updates, TTL, compound indexes and pipeline.",
+      "practice": "Q143–Q146, A45, C45",
+      "links": [
+        {
+          "title": "Data modeling",
+          "url": "https://www.mongodb.com/docs/manual/data-modeling/",
+          "type": "officially"
+        },
+        {
+          "title": "Atomicity",
+          "url": "https://www.mongodb.com/docs/manual/core/write-operations-atomicity/",
+          "type": "officially"
+        },
+        {
+          "title": "Aggregation",
+          "url": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline/",
+          "type": "officially"
+        },
+        {
+          "title": "Compound indexes",
+          "url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound/",
+          "type": "officially"
+        }
+      ]
+    },
+    {
+      "label": "DATA / NOSQL",
+      "title": "NoSQL / Graph",
+      "focus": "Property graph, directional patterns, node/path semantics, OPTIONAL MATCH and bounded traversal.",
+      "practice": "Q147–Q148, A46, C44",
+      "links": [
+        {
+          "title": "Cypher MATCH",
+          "url": "https://neo4j.com/docs/cypher-manual/current/clauses/match/",
+          "type": "officially"
+        },
+        {
+          "title": "OPTIONAL MATCH",
+          "url": "https://neo4j.com/docs/cypher-manual/current/clauses/optional-match/",
+          "type": "officially"
+        }
+      ]
+    },
+    {
+      "label": "DATA / NOSQL",
+      "title": "NoSQL / Redis",
+      "focus": "Key-value and data structures: leaderboard, cache-aside, staleness and invalidation races.",
+      "practice": "Q149–Q150, A47",
+      "links": [
+        {
+          "title": "Redis data types",
+          "url": "https://redis.io/docs/latest/develop/data-types/",
+          "type": "officially"
+        }
+      ]
+    },
+    {
+      "label": "DATA / NOSQL",
+      "title": "NoSQL / Cassandra",
+      "focus": "Wide-column query-driven modeling, partition/clustering keys, hot partitions and retention.",
+      "practice": "Q151–Q152, A48",
+      "links": [
+        {
+          "title": "Data modeling",
+          "url": "https://cassandra.apache.org/doc/latest/cassandra/developing/data-modeling/intro.html",
+          "type": "officially"
+        },
+        {
+          "title": "CQL DDL",
+          "url": "https://cassandra.apache.org/doc/latest/cassandra/developing/cql/ddl.html",
+          "type": "officially"
+        }
+      ]
+    },
+    {
+      "label": "EF CORE / TRANSACTIONS",
+      "title": "EF Core: SaveChanges, bulk API and transaction boundaries",
+      "focus": "Distinguish between database atomicity, change tracker, and operation repetition boundaries. Go through theory, rollback practice and review of mixed operations.",
+      "practice": "Q153–Q158, C46, A49; related C25, C35, T14, A35",
+      "links": [
+        {
+          "title": "Video Milan Jovanovic",
+          "url": "https://www.youtube.com/watch?v=cUszBUYSFzw",
+          "type": "video"
+        },
+        {
+          "title": "Author's article",
+          "url": "https://www.milanjovanovic.tech/blog/working-with-transactions-in-ef-core",
+          "type": "original material"
+        },
+        {
+          "title": "Microsoft: transactions",
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/transactions",
+          "type": "original source"
+        },
+        {
+          "title": "Microsoft: ExecuteUpdate/Delete",
+          "url": "https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete",
+          "type": "original source"
+        },
+        {
+          "title": "Microsoft: connection resiliency",
+          "url": "https://learn.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency",
+          "type": "original source"
+        }
+      ]
+    }
+  ]
+}

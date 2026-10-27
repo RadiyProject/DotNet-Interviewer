@@ -1,0 +1,6 @@
+{
+  "Microsoft.EntityFrameworkCore.Sqlite": "10.0.10",
+  "Dapper": "2.1.66",
+  "System.Threading.Tasks.Dataflow": "10.0.10",
+  "NUnit": "4.3.2"
+}

@@ -1,0 +1,26 @@
+{
+  "added": [
+    "Q111",
+    "Q112",
+    "Q113",
+    "Q114",
+    "Q115",
+    "Q116",
+    "Q117",
+    "Q118",
+    "Q119",
+    "Q120",
+    "Q121",
+    "Q122",
+    "C41",
+    "C42",
+    "A40",
+    "A41"
+  ],
+  "total": 266,
+  "sources": [
+    "https://zerotomastery.io/blog/dot-net-interview-questions/",
+    "https://github.com/aam9063/dotnet-interview-questions/blob/master/dotnet_questions.md"
+  ],
+  "scope": "Авторские дополнения и уточнения; не полный импорт всех вопросов."
+}
