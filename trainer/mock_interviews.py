@@ -17,9 +17,9 @@ from quality import analyze
 
 FORMATS = {
  'screening': {'label': {'ru':'HR / скрининг','en':'HR / screening'}, 'minutes':25,
-   'focus': 'Resume, role motivation, individual contribution, career transitions, compensation expectations, availability and candidate questions. Follow up on ALL relevant resume claims without inventing facts.',
-   'questions': {'ru':['Расскажи о последнем проекте и своей личной ответственности.','Какая роль и условия работы тебе подходят?','Как ты измерял результат своей работы?'],
-                 'en':['Describe your last project and your individual responsibilities.','What role and working conditions are you looking for?','How did you measure the impact of your work?']}},
+   'focus': 'Detailed resume and career-history discussion, individual contribution, transitions, motivation, expected salary range for this vacancy, availability and candidate questions. Refer back to earlier answers and prior employers. Establish the expected salary range before the closing segment unless the candidate declines or ends early.',
+   'questions': {'ru':['Расскажи о последнем проекте и своей личной ответственности.','Какая роль и условия работы тебе подходят?','Как ты измерял результат своей работы?','Какую зарплатную вилку ты ожидаешь для этой вакансии: валюта, gross или net?'],
+                 'en':['Describe your last project and your individual responsibilities.','What role and working conditions are you looking for?','How did you measure the impact of your work?','What salary range would you expect for this role, in which currency, and is that gross or net?']}},
  'technical': {'label': {'ru':'Техническое интервью','en':'Technical interview'}, 'minutes':60,
    'focus':'Include both an oral theory segment from the quiz bank and practical code/SQL discussion. Probe C#/.NET, concurrency, data access, testing and tradeoffs within the selected topics. Ask why and when, not multiple-choice letters. Use linked practical tasks and ask the candidate to explain invariants and complexity.',
    'questions': {'ru':['Какой инвариант защищает твоё решение?','Какие крайние случаи ты проверишь?','Что изменится при нескольких репликах сервиса?'],
@@ -60,7 +60,28 @@ def interviewer_persona(seed, stage, language, gender='random'):
               'technical':['Senior .NET Engineer','Staff Backend Engineer'],
               'lead':['Engineering Manager','Technical Lead'],
               'final':['Director of Engineering','Head of Engineering']}}
-    return {'name':rng.choice(names[language][gender]),'gender':gender,'role':rng.choice(roles[language][stage]),'virtual':True}
+    return {'name':rng.choice(names[language][gender]),'gender':gender,'role':rng.choice(roles[language][stage]),'virtual':True,'behavior':interviewer_behavior(seed,stage)}
+
+def interviewer_behavior(seed,stage):
+    # A separate seed keeps demeanor independent of gender, language and name.
+    rng=random.Random('behavior:'+seed+':'+stage)
+    styles=[
+        ('supportive','Warm, encouraging, patient; acknowledge effort without implying correctness.'),
+        ('analytical','Methodical and precise; seek mechanisms, examples and clearly separated assumptions.'),
+        ('skeptical','Professionally skeptical; probe vague claims and ask for evidence without accusations.'),
+        ('conversational','Personable and curious; connect follow-ups to the candidate’s previous examples.'),
+        ('concise','Reserved and economical with words; prefer direct questions and compact answers.'),
+        ('brisk','Time-conscious, sometimes mildly impatient with digressions; politely redirect to the question.'),
+        ('balanced','Calm and adaptable; balance encouragement, probing and practical time limits.')]
+    style,manner=rng.choice(styles)
+    return {'style':style,'manner':manner,
+            'patience':rng.choice(['high','moderate']) if style=='supportive' else rng.choice(['high','moderate','limited']),
+            'followup_depth':rng.choice(['selective deep dives','several precise follow-ups per important example','broad coverage with one deeper example']),
+            'answer_reaction':rng.choice(['seek a concrete example before forming an opinion','check personal ownership and evidence','test reasoning with a counterexample','ask a clarification before challenging an ambiguous claim']),
+            'question_detail':rng.choice(['short open prompts, then clarify progressively','a focused scenario with explicit constraints','concrete questions tied to a specific resume statement']),
+            'question_angles':rng.sample(['timeline and context','individual contribution','reasoning and alternatives','measured impact','mistakes and lessons','collaboration and disagreement'],3),
+            'energy':rng.choice(['steady throughout','engaged early, slightly more concise late','initially reserved, more engaged by concrete examples','occasional mild fatigue after the midpoint, then refocus']),
+            'stage':stage}
 
 def employer_simulation(seed, profile):
     name=profile.get('company_name','').strip()
@@ -114,9 +135,18 @@ class MockStore:
     if not task: raise ValueError('Unknown task')
     return localize_task(task,language)
  def session(self,id):
-    with self.connect() as db: row=db.execute('SELECT * FROM mock_sessions WHERE id=?',(id,)).fetchone()
-    if not row: raise ValueError('Unknown interview session')
-    value=dict(row);value['state']=json.loads(value['state']);return value
+    with self.lock:
+        with self.connect() as db: row=db.execute('SELECT * FROM mock_sessions WHERE id=?',(id,)).fetchone()
+        if not row: raise ValueError('Unknown interview session')
+        value=dict(row);value['state']=json.loads(value['state']);st=value['state']
+        if not value['finished'] and self.began_at(value) is not None and time.time()>=value['deadline']:
+            version=st['version'];value['finished']=value['deadline'];st['pending']=None
+            if st.get('mode')=='chatgpt':
+                c=st.setdefault('companion',{});c['deadline_reached']=True;c['transcript_complete']=False
+                for item in c.get('contexts',[]):
+                    if not item.get('delivered'):item['cancelled']=True;item['delivered']=time.time()
+            st['summary']=self.simple_summary(value);self.save(value,version)
+        return value
  def save(self,session,old_version):
     session['state']['version']=old_version+1
     with self.connect() as db:
@@ -133,15 +163,18 @@ class MockStore:
  def remaining(self,session):
     if self.began_at(session) is None:return self.duration(session)
     return max(0,round(session['deadline']-(session['finished'] or time.time())))
+ def interviewer(self,session):
+    person=session['state'].get('interviewer') or interviewer_persona(session['id'],session['stage'],session['state']['language'])
+    return {**person,'behavior':person.get('behavior') or interviewer_behavior(session['id'],session['stage'])}
  def public(self,session):
     state=session['state']
     bank=[]
     for id in state['bank_ids']:
         t=self.task(id,state['language'])
         bank.append({k:t.get(k) for k in ['id','title','engine','cat','tags','desc','requirements','cases','minutes']})
-    return {k:v for k,v in session.items() if k!='state'}|{'company':state.get('company'),'interviewer':state.get('interviewer') or interviewer_persona(session['id'],session['stage'],state['language']),'language':state['language'],'strict_language':state['config'].get('strict_language',False),'mode':state['mode'],'tags':state['tags'],
+    return {k:v for k,v in session.items() if k!='state'}|{'company':state.get('company'),'interviewer':self.interviewer(session),'language':state['language'],'strict_language':state['config'].get('strict_language',False),'mode':state['mode'],'tags':state['tags'],
         'messages':state['messages'],'summary':({**state['summary'],'stats':self.stats(session)} if state.get('summary') else None),'summary_translation':state.get('summary_translation'),'hints':state['hints'],'attachments':state['attachments'],
-        'companion':{k:state.get('companion',{}).get(k) for k in ['last_sync','url','finished_from_tab','transcript_complete']},'companion_queued':sum(not x.get('delivered') for x in state.get('companion',{}).get('contexts',[])),'constructed_plan':state.get('constructor_plan'),'bank':bank,'pending':bool(state.get('pending')),'stats':self.stats(session),'context_name':state['profile']['name'],'phase':self.phase(session),'created':session['started'],'started':self.began_at(session),'deadline':session['deadline'] if self.began_at(session) is not None else None,'duration_seconds':self.duration(session)}
+        'companion':{k:state.get('companion',{}).get(k) for k in ['last_sync','url','finished_from_tab','transcript_complete','deadline_reached']},'companion_queued':sum(not x.get('delivered') for x in state.get('companion',{}).get('contexts',[])),'constructed_plan':state.get('constructor_plan'),'bank':bank,'pending':bool(state.get('pending')),'stats':self.stats(session),'context_name':state['profile']['name'],'phase':self.phase(session),'created':session['started'],'started':self.began_at(session),'deadline':session['deadline'] if self.began_at(session) is not None else None,'duration_seconds':self.duration(session)}
  def stats(self,session):
     st=session['state']
     turns=[(i,m) for i,m in enumerate(st['messages']) if m['role']=='candidate' and not m.get('preparation')]
@@ -164,7 +197,7 @@ class MockStore:
     st=session['state'];bank=[]
     for id in st['bank_ids']:
         t=self.task(id,st['language'])
-        bank.append({k:t.get(k) for k in ['id','title','engine','desc','requirements','cases','review','answer','choices','source']})
+        bank.append({k:t.get(k) for k in ['id','title','engine','desc','requirements','cases','review','answer','choices','source','interview_flow']})
     attachments=[]
     with self.connect() as db:
         for id in st['attachments']:
@@ -172,10 +205,11 @@ class MockStore:
             if row:
                 a=dict(row);a['result']=json.loads(a['result']) if a['result'] else None
                 attachments.append({k:a[k] for k in ['id','task_id','code','result','revealed']})
-    return {'company':st.get('company'),'interviewer':st.get('interviewer') or interviewer_persona(session['id'],session['stage'],st['language']),'language':st['language'],'stage':session['stage'],'format':FORMATS[session['stage']],
+    return {'company':st.get('company'),'interviewer':self.interviewer(session),'language':st['language'],'stage':session['stage'],'format':FORMATS[session['stage']],
             'action':action,'candidate_profile':st['profile'],'interview_config':st['config'],
             'constructed_plan':st.get('constructor_plan'),'phase':self.phase(session),'duration_seconds':self.duration(session),'remaining_seconds':self.remaining(session),
             'transcript':st['messages'],'bank':bank,'practice_evidence':attachments,'shared_artifacts':st.get('shared_artifacts',[]),
+            'timing':{'server_time':time.time(),'deadline':session['deadline'] if self.began_at(session) is not None else None,'remaining_seconds':self.remaining(session),'duration_seconds':self.duration(session)},
             'stats':self.stats(session),'previous_round_summary':st.get('previous_summary')}
  def request(self,session,action):
     mode='summary' if action=='finish' else 'turn'
@@ -362,7 +396,7 @@ class MockStore:
         if pending['mode']=='turn' and self.began_at(session) is None:raise ValueError('Click Start interview before recording interview questions')
         result=validate(pending['mode'],p.get('result'),st['bank_ids'])
         if pending['mode']=='turn' and not any(m['role']=='interviewer' for m in st['messages']):
-            person=st.get('interviewer') or interviewer_persona(session['id'],session['stage'],st['language'])
+            person=self.interviewer(session)
             if person['name'] not in result['message']:
                 greeting=('Здравствуйте! Я ' if st['language']=='ru' else 'Hello! I’m ')+person['name']+', '+person['role']+'.'
                 result={**result,'message':greeting+'\n\n'+result['message']}

@@ -4858,7 +4858,8 @@
       "A03",
       "A05",
       "C11",
-      "Q140"
+      "Q140",
+      "C47"
     ],
     "tags": [
       "concurrency"
@@ -5200,7 +5201,8 @@
       "Q059",
       "Q060",
       "A12",
-      "Q074"
+      "Q074",
+      "C47"
     ],
     "tags": [
       "platform",
@@ -7644,7 +7646,8 @@
       "C10",
       "C14",
       "C15",
-      "Q069"
+      "Q069",
+      "C47"
     ],
     "tags": [
       "platform",
@@ -15731,5 +15734,754 @@
       "databases",
       "architecture"
     ]
+  },
+  {
+    "id": "C47",
+    "engine": "csharp",
+    "cat": "Concurrency",
+    "minutes": 40,
+    "prio": "P0",
+    "kind": "C# · автотесты",
+    "cases": [
+      "Нормализация ключа",
+      "Свежий кэш и граница TTL",
+      "TTL после завершения загрузки",
+      "Согласованное обновление",
+      "Независимость валют",
+      "Таймаут ожидания",
+      "Отмена ожидающего",
+      "Отмена владельца",
+      "Повтор после null и исключения",
+      "Валидация"
+    ],
+    "starter": "public sealed class AsyncRateCache\n{\n\tpublic AsyncRateCache(Func<string, CancellationToken, Task<decimal?>> load, TimeProvider clock, TimeSpan ttl, TimeSpan waitTimeout)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n\n\tpublic Task<decimal?> GetAsync(string currencyCode, CancellationToken ct = default)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}",
+    "hints": [
+      "Раздели защищённость контейнера и инвариант всей операции загрузки.",
+      "Сравни состояние до ожидания и после его завершения. Кто мог успеть заполнить кэш?",
+      "У разрешения должен быть один владелец. null и исключение оставляют кэш без свежей записи."
+    ],
+    "review": [
+      "Нормализация до координации",
+      "Повторное чтение после ожидания",
+      "Освобождение только полученного разрешения",
+      "Нет глобальной сериализации независимых ключей",
+      "Явная политика ошибок и отмены"
+    ],
+    "requirements": [
+      "Конструктор: load/clock не null (ArgumentNullException); ttl>0 и waitTimeout>=0 (ArgumentOutOfRangeException). TimeProvider используется для TTL; waitTimeout — реальное ожидание блокировки, а не fake time и не таймаут загрузчика.",
+      "GetAsync: null currencyCode → ArgumentNullException; после Trim код должен содержать ровно 3 ASCII-буквы A–Z/a–z, иначе ArgumentException. Нормализуй ToUpperInvariant ДО выбора кэша, блокировки и вызова load. Загрузчик получает нормализованный ключ.",
+      "Свежесть: clock.GetUtcNow() < storedAt+ttl. В точности на границе TTL запись устарела. TTL начинается после успешного завершения load. Свежие записи возвращаются без ожидания блокировки.",
+      "Не более одного load одновременно на нормализованный ключ в одном экземпляре кэша. После ожидания повторно проверь свежесть. Разные ключи не блокируют друг друга. Любая реализация с таким наблюдаемым поведением допустима.",
+      "Если разрешение не получено за waitTimeout — TimeoutException. waitTimeout=0 разрешён: занятый ключ немедленно отказывает. Не освобождай незахваченное разрешение. Сам load не ограничен этим таймаутом.",
+      "После валидации проверь ct до чтения/работы, передавай его в ожидание и load; проверяй отмену после load до сохранения. Отмена ожидающего не отменяет чужую загрузку. Ошибки/отмена владельца распространяются; блокировка освобождается.",
+      "null, ошибки и отменённые загрузки не кэшируются. Следующий вызов может повторить загрузку; объединение неуспешных результатов и stale fallback здесь НЕ требуются. Просроченное значение не возвращается при отказе провайдера.",
+      "Сохрани сигнатуры. Для ограниченного пространства из трёхбуквенных кодов очистка словаря блокировок не требуется. Несколько процессов, eviction, distributed locks, jitter и retries обсуждаются отдельно и не являются скрытыми требованиями."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C10",
+      "Q052",
+      "A12",
+      "Q165",
+      "Q166",
+      "Q167",
+      "Q168",
+      "Q169",
+      "Q170",
+      "A52",
+      "A53",
+      "Q171",
+      "Q172",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Async TTL-кэш: согласовать обновление на ключ",
+    "desc": "Реализуй AsyncRateCache без внешних пакетов. Кэш хранит курс, а не сумму конвертации. Одновременные обращения к одной нормализованной валюте согласуют успешное обновление; независимые ключи загружаются параллельно. Контракт ниже задаёт TTL, отмену и политику ошибок.",
+    "answer": "Возможный подход: ConcurrentDictionary для записей и для SemaphoreSlim на нормализованный ключ. Быстрый путь читает свежую запись, затем WaitAsync(waitTimeout,ct); false означает TimeoutException вне try/finally владельца. Внутри повтори чтение, вызови load с ct, проверь отмену и сохрани только ненулевой результат с временем ПОСЛЕ load. Release в finally. Используй объект, возвращённый GetOrAdd: его factory может выполниться несколько раз. SemaphoreSlim не нужно удалять сразу после Release: ожидающие ещё могут ссылаться на старый объект. Этот контракт не равен гарантии одного вызова провайдера при серии ошибок и не даёт межпроцессной координации.",
+    "harness": "C47.cs",
+    "interview_flow": [
+      "Сначала уточни: провайдер загружает одну валюту или общий снимок? Что именно кэшируем и какое направление котировки?",
+      "Попроси описать TTL, точную границу свежести и момент начала срока хранения.",
+      "Попроси показать interleaving двух промахов: что гарантирует словарь, а что — вся операция?",
+      "Попроси объяснить async-ожидание, повторное чтение и владение разрешением при timeout/отмене.",
+      "Обсуди параллельность независимых ресурсов, нормализацию и lifetime keyed locks.",
+      "После показанного кода спроси про null, ошибки, отмену владельца/ожидающего и подтверждённые тестами границы.",
+      "Если осталось время, измени условие: общий снимок курсов или три реплики сервиса. Какие гарантии теперь нужны?"
+    ]
+  },
+  {
+    "id": "Q165",
+    "engine": "quiz",
+    "cat": "Concurrency",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52",
+      "A53",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "ConcurrentDictionary и атомарность загрузки",
+    "desc": "Два запроса видят промах и вызывают внешний API. Какие утверждения верны?",
+    "choices": [
+      "Потокобезопасность словаря не делает весь check-load-store атомарным",
+      "GetOrAdd гарантирует один запуск valueFactory",
+      "Бизнес-загрузку в factory GetOrAdd могут выполнить несколько конкурирующих вызовов",
+      "readonly гарантирует неизменность содержимого словаря"
+    ],
+    "answer": "GetOrAdd вызывает factory вне внутренних блокировок. Один сохранённый элемент не означает один запуск фабрики. readonly фиксирует ссылку, а не содержимое.",
+    "correct": [
+      0,
+      2
+    ]
+  },
+  {
+    "id": "Q166",
+    "engine": "quiz",
+    "cat": "Concurrency",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Повторное чтение после async-ожидания",
+    "desc": "Ожидающий получил per-key семафор после успешного обновления другим запросом. Что важно?",
+    "choices": [
+      "Без повторного чтения запросы могут последовательно повторять загрузку",
+      "Повторное чтение свежести предотвращает лишнюю успешную загрузку",
+      "Первое чтение можно считать вечным снимком состояния",
+      "Release нужен и при timeout=false"
+    ],
+    "answer": "Ожидание не сохраняет прежнее состояние кэша. Под защитой повторно прочитай свежесть; освобождай разрешение только после успешного захвата.",
+    "correct": [
+      0,
+      1
+    ]
+  },
+  {
+    "id": "Q167",
+    "engine": "quiz",
+    "cat": "Concurrency",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Таймаут ожидания и отмена загрузки",
+    "desc": "WaitAsync(timeout,ct) используется перед HTTP-загрузкой. Выбери верные утверждения.",
+    "choices": [
+      "false означает, что разрешение не получено",
+      "Этот timeout автоматически ограничивает следующий HTTP-запрос",
+      "Отмену HTTP нужно отдельно передать через клиент",
+      "После отменённого ожидания нельзя безусловно делать Release"
+    ],
+    "answer": "Отделяй бюджет ожидания от бюджета операции. WaitAsync может вернуть false или бросить OperationCanceledException; владения разрешением тогда нет.",
+    "correct": [
+      0,
+      2,
+      3
+    ]
+  },
+  {
+    "id": "Q168",
+    "engine": "quiz",
+    "cat": "Caching",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/aspnet/core/performance/caching/memory?view=aspnetcore-10.0"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A53",
+      "A52",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Ключ кэша и единица загружаемых данных",
+    "desc": "Провайдер по GET latest всегда отдаёт весь снимок курсов. Что следует обсудить?",
+    "choices": [
+      "Кэшировать весь снимок и координировать обновление этого ресурса",
+      "Всегда делать отдельный HTTP-запрос на каждую валюту",
+      "Нормализовать валюту до выбора кэша и блокировки",
+      "Общий семафор всегда хуже per-key, независимо от ресурса"
+    ],
+    "answer": "Гранулярность выбирают по ресурсу. Один gate уместен для одного общего снимка; per-key gates нужны для независимых загрузок. eur и EUR должны попадать в одну область координации, если обозначают один ресурс.",
+    "correct": [
+      0,
+      2
+    ]
+  },
+  {
+    "id": "Q169",
+    "engine": "quiz",
+    "cat": "Concurrency",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52",
+      "A53",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Удаление блокировки после Release",
+    "desc": "Почему Locks.TryRemove(key) сразу после Release может нарушить инвариант?",
+    "choices": [
+      "Ожидающие могут продолжать использовать старый gate",
+      "Новый запрос может получить уже другой gate для того же ключа",
+      "ConcurrentDictionary автоматически мигрирует всех ожидающих",
+      "Dispose можно безопасно вызвать при наличии ожидающих"
+    ],
+    "answer": "Появляются две области синхронизации для одного ресурса. Очистка keyed locks требует отдельного протокола lifetime/ref-count либо другого bounded механизма; это не просто удаление записи.",
+    "correct": [
+      0,
+      1
+    ]
+  },
+  {
+    "id": "Q170",
+    "engine": "quiz",
+    "cat": "Caching",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/aspnet/core/performance/caching/memory?view=aspnetcore-10.0"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52",
+      "A53",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "TTL и поведение при ошибке провайдера",
+    "desc": "Выбери корректные утверждения для TTL-кэша с загрузкой под per-key gate.",
+    "choices": [
+      "Истечение TTL само по себе не означает физического удаления записи",
+      "Если ошибки не кэшируются, следующие ожидающие могут снова вызвать провайдера",
+      "TTL гарантирует совпадение с расписанием провайдера",
+      "null, временный сбой и отмена требуют явно определённой семантики"
+    ],
+    "answer": "Срок свежести, освобождение памяти и политика отказов — разные вопросы. Успешное объединение загрузки не гарантирует объединение ошибок. Negative cache и stale-if-error допустимы только как явная политика.",
+    "correct": [
+      0,
+      1,
+      3
+    ]
+  },
+  {
+    "id": "Q171",
+    "engine": "quiz",
+    "cat": "Caching",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/core/extensions/caching"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A53",
+      "A52",
+      "A54"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "Общий Redis и границы stampede protection",
+    "desc": "API работает в трёх процессах. Что верно?",
+    "choices": [
+      "Локальный SemaphoreSlim не координирует остальные процессы",
+      "Общий Redis автоматически означает exactly-once refresh во всём кластере",
+      "Stampede protection HybridCache ограничена одним его экземпляром",
+      "При distributed lock нужно обсудить lease, истечение и устаревшего владельца"
+    ],
+    "answer": "Разделяемое хранение не равно разделяемой координации. Microsoft явно ограничивает защиту HybridCache одним экземпляром. Иногда дублирующее обновление на реплику допустимо; distributed lock оправдывай требованиями.",
+    "correct": [
+      0,
+      2,
+      3
+    ]
+  },
+  {
+    "id": "Q172",
+    "engine": "quiz",
+    "cat": "Concurrency",
+    "minutes": 2,
+    "prio": "P0",
+    "kind": "Теория · множественный выбор",
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "requirements": [
+      "Отметь все верные варианты. Зачёт — точный набор без лишних и пропущенных отметок."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/csharp/language-reference/statements/lock"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "A52"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech"
+    ],
+    "title": "await внутри lock",
+    "desc": "Какие утверждения верны для асинхронного обновления кэша?",
+    "choices": [
+      "await в теле lock запрещён C#",
+      "SemaphoreSlim.WaitAsync позволяет ждать без блокировки потока на всё ожидание",
+      "Нужно удерживать обычный Monitor через await вручную",
+      "Семафор не делает словарь с параллельными изменениями автоматически безопасным"
+    ],
+    "answer": "У Monitor есть thread affinity, а async continuation не обязано исполняться в прежнем потоке. Async gate решает ожидание разрешения; безопасность хранилища и доступы вне gate всё равно надо проектировать.",
+    "correct": [
+      0,
+      1,
+      3
+    ]
+  },
+  {
+    "id": "A52",
+    "engine": "review",
+    "cat": "Caching",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Архитектура · рубрика",
+    "cases": [],
+    "starter": "Инварианты и контракт:\n\nГонки / отказы:\n\nРешение и границы гарантий:\n\nПроверки и метрики:\n",
+    "hints": [
+      "Начни с единицы ресурса и наблюдаемого контракта; затем покажи конкретный interleaving."
+    ],
+    "review": [
+      "Покажи interleaving для двух запросов одного ключа; объясни необходимость повторной проверки.",
+      "Раздели timeout, отменённое ожидание и владение разрешением; придумай сценарий ошибки загрузчика.",
+      "Разбери гонку удаления gate, регистр ключей и момент начала TTL.",
+      "Предложи детерминированные проверки с управляемым загрузчиком и часами; отдельно перечисли ограничения решения."
+    ],
+    "requirements": [
+      "Покажи interleaving для двух запросов одного ключа; объясни необходимость повторной проверки.",
+      "Раздели timeout, отменённое ожидание и владение разрешением; придумай сценарий ошибки загрузчика.",
+      "Разбери гонку удаления gate, регистр ключей и момент начала TTL.",
+      "Предложи детерминированные проверки с управляемым загрузчиком и часами; отдельно перечисли ограничения решения."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "Q165",
+      "Q168",
+      "Q169",
+      "Q170",
+      "Q171",
+      "Q166",
+      "Q167",
+      "Q172"
+    ],
+    "tags": [
+      "fintech",
+      "concurrency",
+      "performance",
+      "distributed-systems",
+      "api"
+    ],
+    "title": "Code review: async-кэш без скрытых гарантий",
+    "desc": "Сервис кэширует курсы в ConcurrentDictionary. После miss берёт per-key SemaphoreSlim, ждёт 5 секунд, сразу вызывает API; finally всегда делает Release и TryRemove ключа блокировки. TTL считается от начала HTTP. Найди нарушения и предложи минимальное исправление.",
+    "answer": "После acquire повторно читай кэш; Release только владельцем в finally. Нормализуй до обоих словарей; время сохранения ставь после успешной загрузки. Не удаляй gate без lifetime-протокола. Обговори null/error/stale, bounded keys и процессную область гарантий."
+  },
+  {
+    "id": "A53",
+    "engine": "review",
+    "cat": "Caching",
+    "minutes": 40,
+    "prio": "P0",
+    "kind": "Архитектура · рубрика",
+    "cases": [],
+    "starter": "Инварианты и контракт:\n\nГонки / отказы:\n\nРешение и границы гарантий:\n\nПроверки и метрики:\n",
+    "hints": [
+      "Начни с единицы ресурса и наблюдаемого контракта; затем покажи конкретный interleaving."
+    ],
+    "review": [
+      "Сравни per-currency и общий immutable snapshot, число HTTP-вызовов и атомарную замену версии снимка.",
+      "Определи допустимую устарелость и поведение после TTL, во время outage и при холодном старте.",
+      "Раздели Redis data sharing и координацию refresh; объясни, допустимо ли одно обновление на реплику.",
+      "При требовании distributed lock обсуди lease, stale owner, conditional publication/fencing и отказ Redis. Не обещай exactly-once.",
+      "Раздели wait budget, provider timeout, cancellation и наблюдаемость; проверь направление котировки на числовом примере."
+    ],
+    "requirements": [
+      "Сравни per-currency и общий immutable snapshot, число HTTP-вызовов и атомарную замену версии снимка.",
+      "Определи допустимую устарелость и поведение после TTL, во время outage и при холодном старте.",
+      "Раздели Redis data sharing и координацию refresh; объясни, допустимо ли одно обновление на реплику.",
+      "При требовании distributed lock обсуди lease, stale owner, conditional publication/fencing и отказ Redis. Не обещай exactly-once.",
+      "Раздели wait budget, provider timeout, cancellation и наблюдаемость; проверь направление котировки на числовом примере."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/core/extensions/caching"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "Q165",
+      "Q168",
+      "Q169",
+      "Q170",
+      "Q171"
+    ],
+    "tags": [
+      "fintech",
+      "concurrency",
+      "performance",
+      "distributed-systems",
+      "api"
+    ],
+    "title": "Курсы валют: снимок провайдера и несколько реплик",
+    "desc": "GET latest возвращает весь набор курсов относительно USD, но три реплики API кэшируют отдельные валюты и используют локальные keyed locks. Спроектируй единицу кэширования, свежесть и согласование обновления. Курс имеет явно заданное направление: единиц target на одну USD.",
+    "answer": "Если загружается общий Data, один refresh gate защищает общий ресурс логично. Храни курс/снимок, не результаты умножения для всех сумм. Local gate и HybridCache instance не обеспечивают кластерный single-flight. Для USD→target при target/USD умножают; обратное направление требует другой формулы. Это контракт данных, не универсальное правило валютной конвертации."
+  },
+  {
+    "id": "A54",
+    "engine": "review",
+    "cat": "Caching",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Архитектура · рубрика",
+    "cases": [],
+    "starter": "Инварианты и контракт:\n\nГонки / отказы:\n\nРешение и границы гарантий:\n\nПроверки и метрики:\n",
+    "hints": [
+      "Начни с единицы ресурса и наблюдаемого контракта; затем покажи конкретный interleaving."
+    ],
+    "review": [
+      "Раздели отсутствие валюты, неверный ввод, upstream HTTP/network failure, malformed response и caller cancellation.",
+      "Предложи подходящие HTTP mappings с оговоркой, что статус зависит от API-контракта; не возвращай 404 для всех сбоев.",
+      "Отдельно обработай timeout ожидания и timeout провайдера, не называй отмену клиента server error.",
+      "Объясни observability без утечки API-ключа, retry policy и то, какие ответы можно negative-cache."
+    ],
+    "requirements": [
+      "Раздели отсутствие валюты, неверный ввод, upstream HTTP/network failure, malformed response и caller cancellation.",
+      "Предложи подходящие HTTP mappings с оговоркой, что статус зависит от API-контракта; не возвращай 404 для всех сбоев.",
+      "Отдельно обработай timeout ожидания и timeout провайдера, не называй отмену клиента server error.",
+      "Объясни observability без утечки API-ключа, retry policy и то, какие ответы можно negative-cache."
+    ],
+    "origin": "Авторское учебное задание по предоставленному разбору async-кэширования; технические гарантии сверены с документацией Microsoft. Не копия исходников автора видео.",
+    "source": [
+      "Microsoft Learn",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "references": [
+      [
+        "ConcurrentDictionary.GetOrAdd",
+        "https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd"
+      ],
+      [
+        "SemaphoreSlim.WaitAsync",
+        "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+      ],
+      [
+        "Caching in .NET",
+        "https://learn.microsoft.com/dotnet/core/extensions/caching"
+      ]
+    ],
+    "related": [
+      "C47",
+      "Q165",
+      "Q168",
+      "Q169",
+      "Q170",
+      "Q171"
+    ],
+    "tags": [
+      "fintech",
+      "concurrency",
+      "performance",
+      "distributed-systems",
+      "api"
+    ],
+    "title": "API review: not found, upstream failure и отмена",
+    "desc": "CurrencyApiClient ловит все исключения и возвращает null при 404, 503, отмене и неизвестной валюте. Endpoint всегда отвечает 404, а timeout ожидания gate не обрабатывает. Предложи явный контракт результата без скрытия причин.",
+    "answer": "Используй явные доменные результаты либо разделённые исключения. Например invalid input→400, подтверждённое отсутствие→404, временная недоступность→503 или upstream semantics→502/504 по контракту; это не универсальное соответствие. Отмена вызывающего распространяется и не превращается в «валюта не найдена». Ошибки загрузки не должны бесконтрольно stampede-ить провайдера."
   }
 ]

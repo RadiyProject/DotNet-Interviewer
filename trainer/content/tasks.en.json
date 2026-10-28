@@ -9960,5 +9960,255 @@
       ]
     ],
     "starter": "Requirements and invariants:\n\nConfiguration/code/SQL:\n\nFailures and recovery:\n\nMeasurement and verification plan:\n"
+  },
+  "C47": {
+    "title": "Async TTL cache: coordinate refresh per key",
+    "desc": "Implement AsyncRateCache without external packages. Cache exchange rates, not converted amounts. Concurrent requests for the same normalized currency coordinate a successful refresh; independent keys load in parallel.",
+    "starter": "public sealed class AsyncRateCache\n{\n\tpublic AsyncRateCache(Func<string, CancellationToken, Task<decimal?>> load, TimeProvider clock, TimeSpan ttl, TimeSpan waitTimeout)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n\n\tpublic Task<decimal?> GetAsync(string currencyCode, CancellationToken ct = default)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}",
+    "requirements": [
+      "Constructor: null load/clock throws ArgumentNullException; ttl<=0 or waitTimeout<0 throws ArgumentOutOfRangeException. TimeProvider controls TTL only. waitTimeout is real lock-wait time, not fake time or a loader timeout.",
+      "GetAsync: null currencyCode throws ArgumentNullException; after Trim require exactly three ASCII letters, otherwise ArgumentException. Normalize with ToUpperInvariant before cache lookup, coordination and load. Pass the normalized key to load.",
+      "An entry is fresh only while clock.GetUtcNow() < storedAt+ttl. Equality means expired. TTL starts after a successful load completes. Fresh hits bypass lock waiting.",
+      "At most one load at a time per normalized key in this cache instance. Recheck freshness after waiting. Different keys must not block each other. Any implementation with this observable behavior is accepted.",
+      "Failure to acquire within waitTimeout throws TimeoutException. Zero timeout is allowed and fails immediately for an occupied key. Never release an unacquired permit. The timeout does not bound load execution.",
+      "After validation check ct before reading/working, pass it to waiting and load, and check cancellation after load before publishing. Canceling a waiter must not cancel another caller’s load. Owner errors/cancellation propagate and release coordination.",
+      "Do not cache null, exceptions or canceled loads. Later callers may retry; failure coalescing and stale fallback are not required. Do not return expired values on provider failure.",
+      "Keep signatures. Cleanup of per-key coordination is not required for the bounded three-letter key space. Eviction, distributed locks, jitter and retries are discussion topics, not hidden grading requirements."
+    ],
+    "cases": [
+      "Key normalization",
+      "Fresh hit and exact TTL boundary",
+      "TTL starts after load",
+      "Coordinated refresh",
+      "Independent currencies",
+      "Wait timeout",
+      "Canceled waiter",
+      "Canceled owner",
+      "Retry after null and exception",
+      "Validation"
+    ],
+    "hints": [
+      "Separate container safety from the invariant of the entire load operation.",
+      "Recheck state after waiting: another caller may have populated the cache.",
+      "Only an acquired permit has an owner. Null and exceptions leave no fresh value."
+    ],
+    "review": [
+      "Normalize before coordination",
+      "Recheck after waiting",
+      "Release only acquired permits",
+      "Avoid global serialization",
+      "Explicit error and cancellation policy"
+    ],
+    "answer": "One option uses ConcurrentDictionary entries and per-normalized-key SemaphoreSlim gates. Check a fresh hit first; await WaitAsync(waitTimeout,ct), throwing TimeoutException on false before entering the owner try/finally. Recheck freshness, invoke load with ct, check cancellation and publish non-null data with its completion timestamp. Release in finally. Use the gate returned by GetOrAdd; its factory may run more than once. Removing a gate after Release is unsafe while other callers retain it. This contract does not promise a single provider call across failures or coordinate multiple processes.",
+    "kind": "C# · automated checks",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive.",
+    "interview_flow": [
+      "First clarify whether the provider loads one currency or a shared snapshot, what is cached and the quote direction.",
+      "Ask for the TTL contract, exact freshness boundary and when the lifetime begins.",
+      "Ask for an interleaving of two cache misses: what is guaranteed by the dictionary and by the whole operation?",
+      "Ask about async waiting, the recheck and permit ownership on timeout or cancellation.",
+      "Discuss independent resources, normalization and keyed-lock lifetime.",
+      "After a source snapshot, ask about null, failures, owner/waiter cancellation and what the supplied tests actually establish.",
+      "If time remains, change the scenario to a shared rates snapshot or three service replicas. Which guarantees are needed now?"
+    ]
+  },
+  "Q165": {
+    "title": "ConcurrentDictionary and loading atomicity",
+    "desc": "Two requests miss the cache and call an external API. Which statements are true?",
+    "choices": [
+      "A thread-safe dictionary does not make check-load-store atomic",
+      "GetOrAdd guarantees a single valueFactory invocation",
+      "Competing GetOrAdd calls may execute the business loader more than once",
+      "readonly makes dictionary contents immutable"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "GetOrAdd invokes the factory outside internal locks. One stored entry does not imply one factory invocation. readonly fixes the reference, not the contents.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q166": {
+    "title": "Rechecking after an async wait",
+    "desc": "A waiter acquires a per-key semaphore after another request has refreshed the cache. What matters?",
+    "choices": [
+      "Without a recheck requests may reload sequentially",
+      "Rechecking freshness avoids a redundant successful load",
+      "The initial read remains a permanent snapshot of state",
+      "Release is required even when acquisition returns false"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Waiting does not freeze cache state. Recheck freshness under coordination; release only a successfully acquired permit.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q167": {
+    "title": "Wait timeout versus loader cancellation",
+    "desc": "WaitAsync(timeout,ct) precedes an HTTP load. Select the true statements.",
+    "choices": [
+      "false means no permit was acquired",
+      "This timeout automatically limits the following HTTP call",
+      "HTTP cancellation must be forwarded through the client separately",
+      "A canceled wait must not unconditionally release a permit"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Separate waiting and operation budgets. WaitAsync can return false or throw OperationCanceledException; neither grants ownership of a permit.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q168": {
+    "title": "Cache keys and the loaded resource",
+    "desc": "GET latest always returns the complete rates snapshot. What should be considered?",
+    "choices": [
+      "Cache the whole snapshot and coordinate that resource’s refresh",
+      "Always make one HTTP call per currency",
+      "Normalize currency before cache and gate selection",
+      "A global gate is always inferior regardless of the loaded resource"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Choose granularity by resource. One gate can fit one shared snapshot; per-key gates fit independent loads. eur and EUR should share coordination if they identify the same resource.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q169": {
+    "title": "Removing a gate after Release",
+    "desc": "Why can removing a key’s gate immediately after Release violate the invariant?",
+    "choices": [
+      "Waiters may still reference the old gate",
+      "A new request may obtain another gate for the same key",
+      "ConcurrentDictionary migrates all waiters automatically",
+      "Disposing a gate with waiters is always safe"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Two independent synchronization domains can protect the same resource. Keyed-lock cleanup needs a lifetime/reference-counting protocol or another bounded mechanism, not just dictionary removal.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q170": {
+    "title": "TTL and provider failures",
+    "desc": "Select the correct statements for a TTL cache with loading behind a per-key gate.",
+    "choices": [
+      "TTL expiration alone does not imply physical removal",
+      "If failures are not cached, later waiters may call the provider again",
+      "TTL guarantees synchronization with the provider update schedule",
+      "Null, temporary failure and cancellation need explicit semantics"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Freshness, memory reclamation and failure policy are separate concerns. Coalescing a successful load does not imply coalescing failures. Negative caching and stale-if-error must be explicit policies.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q171": {
+    "title": "Shared Redis and stampede-protection scope",
+    "desc": "The API runs in three processes. Which statements are true?",
+    "choices": [
+      "A local SemaphoreSlim does not coordinate other processes",
+      "Shared Redis implies exactly-once cluster-wide refresh",
+      "HybridCache stampede protection is scoped to an instance",
+      "Distributed coordination needs lease expiry and stale-owner analysis"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Shared storage is not shared coordination. Microsoft explicitly scopes HybridCache protection to one instance. Duplicate refreshes per replica may be acceptable; justify distributed locks from requirements.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "Q172": {
+    "title": "await inside lock",
+    "desc": "Which statements are true for asynchronous cache refresh?",
+    "choices": [
+      "C# prohibits await inside a lock body",
+      "SemaphoreSlim.WaitAsync avoids blocking a thread for the whole wait",
+      "A Monitor should be manually held across await",
+      "A semaphore does not automatically make a dictionary safe under unrelated concurrent writes"
+    ],
+    "requirements": [
+      "Select all correct options. Full credit requires an exact match."
+    ],
+    "answer": "Monitor has thread affinity, while an async continuation need not resume on the same thread. An async gate manages permit waiting; storage safety and accesses outside the gate still need a design.",
+    "kind": "Theory · multiple choice",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "A52": {
+    "title": "Code review: an async cache without hidden guarantees",
+    "desc": "A rates service uses ConcurrentDictionary. After a miss it waits five seconds on a per-key SemaphoreSlim, immediately calls the API, then always releases and removes the gate in finally. TTL starts before HTTP. Find the defects and propose a minimal fix.",
+    "requirements": [
+      "Show a same-key interleaving and explain the recheck.",
+      "Separate timeout, canceled waiting and permit ownership; include loader failure.",
+      "Analyze gate-removal races, key casing and TTL start.",
+      "Propose controlled-loader/fake-clock checks and state the solution’s limits."
+    ],
+    "starter": "Invariants and contract:\n\nRaces / failures:\n\nDesign and guarantees:\n\nChecks and metrics:\n",
+    "hints": [
+      "Start with resource granularity and the observable contract, then show a concrete interleaving."
+    ],
+    "review": [
+      "Show a same-key interleaving and explain the recheck.",
+      "Separate timeout, canceled waiting and permit ownership; include loader failure.",
+      "Analyze gate-removal races, key casing and TTL start.",
+      "Propose controlled-loader/fake-clock checks and state the solution’s limits."
+    ],
+    "answer": "Recheck after acquisition; release only an owned permit in finally. Normalize before both dictionaries and timestamp after successful loading. Do not remove gates without a lifetime protocol. Specify null/error/stale behavior, bounded keys and process-local scope.",
+    "kind": "Architecture · rubric",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "A53": {
+    "title": "Exchange rates: provider snapshot and multiple replicas",
+    "desc": "GET latest returns all rates relative to USD, but three API replicas cache currencies separately behind local keyed locks. Design cache granularity, freshness and refresh coordination. A quote explicitly means target units per USD.",
+    "requirements": [
+      "Compare per-currency caching with an immutable snapshot, HTTP counts and atomic snapshot publication.",
+      "Specify allowed staleness, TTL expiry, outages and cold start.",
+      "Separate Redis data sharing from refresh coordination; decide if one refresh per replica is acceptable.",
+      "If a distributed lock is required, address leases, stale owners, conditional publication/fencing and Redis failure; do not promise exactly-once.",
+      "Separate wait/provider/cancellation budgets and observability; verify quote direction with a numeric example."
+    ],
+    "starter": "Invariants and contract:\n\nRaces / failures:\n\nDesign and guarantees:\n\nChecks and metrics:\n",
+    "hints": [
+      "Start with resource granularity and the observable contract, then show a concrete interleaving."
+    ],
+    "review": [
+      "Compare per-currency caching with an immutable snapshot, HTTP counts and atomic snapshot publication.",
+      "Specify allowed staleness, TTL expiry, outages and cold start.",
+      "Separate Redis data sharing from refresh coordination; decide if one refresh per replica is acceptable.",
+      "If a distributed lock is required, address leases, stale owners, conditional publication/fencing and Redis failure; do not promise exactly-once.",
+      "Separate wait/provider/cancellation budgets and observability; verify quote direction with a numeric example."
+    ],
+    "answer": "If the loader fetches all Data, one refresh gate can logically protect that shared resource. Cache the rate/snapshot rather than every converted amount. A local gate or HybridCache instance is not cluster-wide single-flight. For USD to target quoted as target/USD, multiply; the reverse direction needs a different formula. This follows the data contract, not a universal currency-conversion rule.",
+    "kind": "Architecture · rubric",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "A54": {
+    "title": "API review: not found, upstream failure and cancellation",
+    "desc": "CurrencyApiClient catches every exception and returns null for 404, 503, cancellation and an unknown currency. The endpoint always returns 404 and does not handle gate-wait timeouts. Define an explicit result contract that preserves causes.",
+    "requirements": [
+      "Separate unknown currency, invalid input, upstream HTTP/network failure, malformed response and caller cancellation.",
+      "Propose HTTP mappings appropriate to the API contract; avoid mapping every failure to 404.",
+      "Handle coordination and provider timeouts separately; do not label caller cancellation as a server failure.",
+      "Discuss observability without leaking API keys, retry policy and eligible negative-cache results."
+    ],
+    "starter": "Invariants and contract:\n\nRaces / failures:\n\nDesign and guarantees:\n\nChecks and metrics:\n",
+    "hints": [
+      "Start with resource granularity and the observable contract, then show a concrete interleaving."
+    ],
+    "review": [
+      "Separate unknown currency, invalid input, upstream HTTP/network failure, malformed response and caller cancellation.",
+      "Propose HTTP mappings appropriate to the API contract; avoid mapping every failure to 404.",
+      "Handle coordination and provider timeouts separately; do not label caller cancellation as a server failure.",
+      "Discuss observability without leaking API keys, retry policy and eligible negative-cache results."
+    ],
+    "answer": "Use explicit domain results or distinct exceptions. Possible mappings include invalid input to 400, confirmed absence to 404, temporary unavailability to 503, or 502/504 for appropriate upstream semantics; none is universal. Propagate caller cancellation rather than calling it an unknown currency. Define failure-cache/retry policies to avoid hammering the provider.",
+    "kind": "Architecture · rubric",
+    "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
   }
 }

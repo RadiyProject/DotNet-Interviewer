@@ -1,6 +1,6 @@
 # DotNet Interviewer
 
-A local interview practice app for C#/.NET, SQL, architecture and operations. The bank contains 322 exercises: 48 C# tasks, 42 SQL tasks, 164 theory questions and 68 written design/review exercises.
+A local interview practice app for C#/.NET, SQL, architecture and operations. The bank contains 334 exercises: 49 C# tasks, 42 SQL tasks, 172 theory questions and 71 written design/review exercises.
 
 ## Start
 
@@ -51,3 +51,5 @@ Load **tools/chatgpt-companion** as an unpacked Chrome/Edge extension. Pair one 
 The ChatGPT companion now discovers the open interview through localhost, including Safari → Chrome. Approve its request on the interview page; the token transfers automatically when you return to the companion. Manual token entry remains a fallback. The Codex bridge token still comes from the terminal.
 
 AI rounds now start in preparation mode without consuming interview time. Connect the assistant first, then click **Start interview** on the round page or in the companion to start the persistent server deadline. Repeated start requests do not reset it.
+
+Async TTL caching and stampede protection: C47, Q165–Q172, A52–A54. [Coverage and check limitations](docs/ASYNC_CACHE_PACK.md).

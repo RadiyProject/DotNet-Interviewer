@@ -11,7 +11,7 @@ const put=connection=>chrome.storage.session.set({connection});
 function failure(code,message){return Object.assign(Error(message),{code});}
 function safeOrigin(value){if(!['http://localhost:8080','http://127.0.0.1:8080'].includes(value))throw Error('Use http://localhost:8080 or http://127.0.0.1:8080');return value;}
 function chatURL(value){const u=new URL(value);if(u.origin!=='https://chatgpt.com')throw Error('Select a ChatGPT tab');return u.origin+u.pathname;}
-async function local(c,path,data){const r=await fetch(safeOrigin(c.origin)+'/api/companion/'+path,{method:data?'POST':'GET',headers:{Authorization:'Bearer '+c.token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(15000)});const p=await r.json();if(!r.ok){const error=Error(p.error||r.statusText);error.code='HTTP_'+r.status+'_'+path;throw error;}return p;}
+async function local(c,path,data){const r=await fetch(safeOrigin(c.origin)+'/api/companion/'+path,{method:data?'POST':'GET',headers:{Authorization:'Bearer '+c.token,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{}),signal:AbortSignal.timeout(15000)});const p=await r.json();if(!r.ok){const error=Error(p.error||r.statusText);error.code='HTTP_'+r.status+'_'+path;throw error;}if(path==='status'&&p.deadline&&!p.finished){const when=Date.now()+Math.max(1,(p.deadline-(p.server_time||Date.now()/1000))*1000);await chrome.alarms.create('forge-deadline',{when});}return p;}
 async function bound(c){if(!c?.tabId)throw Error('Bind a ChatGPT tab first');const tab=await chrome.tabs.get(c.tabId);const url=chatURL(tab.url);if(c.url&&c.url!==url)throw Error('The bound tab switched conversations. Return to '+c.url);return tab;}
 async function content(c,action,data={}){
  await bound(c);
@@ -41,12 +41,14 @@ async function acknowledge(c){
  if(pending.pending_nonce&&c.startNonce===pending.pending_nonce){c.startDelivered=true;await put(c);}
  await diagnostic('delivery','visible_in_chat');
 }
-async function sync(c){const r=await read(c);const pending=await local(c,'status');let newest=null;
- for(const marker of r.markers){if(pending.pending_nonce===marker.nonce){await local(c,'delivered',{nonce:marker.nonce,url:r.url,confirmed:marker.confirmed});c.url=r.url;c.uncertain=null;await put(c);}newest=marker;}
+async function sync(c,final=false){const r=await read(c);const pending=await local(c,'status');let newest=null;
+ for(const marker of r.markers){if(pending.known_nonces&&!pending.known_nonces.includes(marker.nonce))continue;if(pending.pending_nonce===marker.nonce){await local(c,'delivered',{nonce:marker.nonce,url:r.url,confirmed:marker.confirmed});c.url=r.url;c.uncertain=null;await put(c);}newest=marker;}
  if(!newest)throw Error('The interview marker is not visible in this conversation. Send the prepared context first; do not select another chat.');
  if(!c.url){const status=await local(c,'status');c.url=status.url;if(!c.url)throw Error('Context delivery is not confirmed yet');await put(c);}
  if(r.transcript_error)throw failure('TRANSCRIPT_INCOMPLETE',r.transcript_error);
- const result=await local(c,'transcript',{context_nonce:newest.nonce,url:r.url,messages:r.messages,transcript_anchor:r.transcript_anchor||null});
+ const fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(r.messages)))),b=>b.toString(16).padStart(2,'0')).join('');
+ let settled=false;if(r.voice_idle===true&&r.transcript_stable===true){if(c.idleTranscriptHash===fingerprint)settled=Date.now()-(c.idleTranscriptSince||Date.now())>=5000;else{c.idleTranscriptHash=fingerprint;c.idleTranscriptSince=Date.now();}}else{c.idleTranscriptHash=null;c.idleTranscriptSince=null;}
+ const result=await local(c,'transcript',{context_nonce:newest.nonce,url:r.url,messages:r.messages,transcript_anchor:r.transcript_anchor||null,transcript_complete:final||settled});
  c.lastSync=result.last_sync;c.lastError=null;if(r.transcript_anchor)c.transcriptAnchor=r.transcript_anchor;await put(c);return result;
 }
 async function deliver(c,manual=false){const p=await local(c,'pending');if(p.finished)throw Error('This interview is finished');if(!p.update)return {state:'nothing_pending'};
@@ -99,12 +101,13 @@ async function work(message){let c=await get();
   try{const status=await local(c,'status');c.lastStatus=status;await put(c);return {connection:publicConnection(c),status,pairingPending};}
   catch(e){return {connection:publicConnection(c),status:c.lastStatus||{phase:'preparing',url:c.url},remoteError:e.message,pairingPending};}
  }
- case 'disconnect':await chrome.storage.session.remove(['connection','autoPair']);await chrome.alarms.clear('forge-sync');return {ok:true};
+ case 'disconnect':await chrome.storage.session.remove(['connection','autoPair']);await chrome.alarms.clear('forge-sync');await chrome.alarms.clear('forge-deadline');return {ok:true};
  }
  if(!c){if(['poll-start','changed'].includes(message.action))return {ignored:true};throw failure('NOT_PAIRED','Сначала подключи интервью в расширении.');}
  switch(message.action){
  case 'poll-start':{
-  if(message.tabId!==c.tabId||!c.consent||c.startDelivered)return {ignored:true};
+  if(message.tabId!==c.tabId||!c.consent)return {ignored:true};
+  const status=await local(c,'status');if(status.deadline_reached)return await finishAtDeadline(c,status);if(c.startDelivered)return {ignored:true};
   const p=await local(c,'pending');
   if(p.update?.action!=='start'||c.uncertain===p.update.nonce)return {ignored:true};
   return await deliver(c,true);
@@ -118,10 +121,10 @@ async function work(message){let c=await get();
  case 'voice':{const check=await read(c);if(!check.markers.length)throw Error('Send the interview context before starting Voice');const r=await content(c,'voice');if(r.error)throw Error(r.error);return r;}
  case 'consent':c.consent=message.allowed===true;if(!c.consent){c.autoSync=false;c.autoUpdates=false;}await put(c);return {ok:true};
  case 'settings':if(!c.consent)throw Error('Allow sharing in the companion first');c.autoSync=!!message.autoSync;c.autoUpdates=!!message.autoUpdates;await put(c);return {ok:true};
- case 'begin':{let s=await local(c,'status');if(!s.url){if(!c.consent)throw Error('Allow sharing and send context before starting');await acknowledge(c);s=await local(c,'status');}if(!s.url)throw Error('Send the interview context to ChatGPT before starting the timer');await local(c,'begin',{});try{const delivery=await deliver(c,true);return {state:'interview_started',delivery:delivery.state};}catch{return {state:'interview_started',delivery:'needs_manual_start'};}}
+ case 'begin':{let s=await local(c,'status');if(!s.url){if(!c.consent)throw Error('Allow sharing and send context before starting');await acknowledge(c);s=await local(c,'status');}if(!s.url)throw Error('Send the interview context to ChatGPT before starting the timer');await local(c,'begin',{});await local(c,'status');try{const delivery=await deliver(c,true);return {state:'interview_started',delivery:delivery.state};}catch{return {state:'interview_started',delivery:'needs_manual_start'};}}
  case 'finish':{
   let syncError=null;
-  try{if(!c.consent)throw Error('Consent to transcript sharing is not enabled');await sync(c);}catch(e){syncError=e.message;}
+  try{if(!c.consent)throw Error('Consent to transcript sharing is not enabled');await sync(c,true);}catch(e){syncError=e.message;}
   const result=await local(c,'finish',{allow_incomplete:true,transcript_complete:!syncError});
   return {...result,sync_error:syncError};
  }
@@ -155,7 +158,22 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
  if(sender.tab){if(!['changed','poll-start'].includes(message.action))return false;message={action:message.action,tabId:sender.tab.id};}
  guarded(message).then(reply).catch(()=>reply({error:'Companion failed. Open extension diagnostics or its service worker console.'}));return true;
 });
-chrome.alarms.onAlarm.addListener(async alarm=>{if(alarm.name!=='forge-sync'||busy)return;busy=true;let c;
- try{c=await get();if(!c?.tabId||!c.consent)return;const s=await local(c,'status');if(s.finished)return;if(c.autoSync)await sync(c);else if(s.pending_nonce)await acknowledge(c);c=await get();if(c.consent&&c.autoUpdates)await deliver(c);}
- catch(e){await diagnostic('background-sync','failed');if(c){c.lastError=e.message;await put(c);}await chrome.action.setBadgeText({text:'!'});}finally{busy=false;}
+async function finishAtDeadline(c,status){
+ if(!status.deadline_reached||!c.consent)return {ignored:true};
+ if(status.transcript_complete){await chrome.alarms.clear('forge-deadline');return {state:'deadline_saved'};}
+ if(Date.now()-(c.deadlineLastAttempt||0)<15000)return {ignored:true};c.deadlineLastAttempt=Date.now();await put(c);
+ let complete=false,error=null;
+ try{const result=await sync(c);complete=result.transcript_complete===true;}catch(e){error=e.message;}
+ await local(c,'finish',{allow_incomplete:true,transcript_complete:complete});
+ await diagnostic('deadline',complete?'transcript_saved':'awaiting_full_transcript');
+ if(error){c=await get();if(c){c.lastError=error;await put(c);}}
+ return {state:complete?'deadline_saved':'deadline_partial',sync_error:error};
+}
+chrome.alarms.onAlarm.addListener(async alarm=>{if(!['forge-sync','forge-deadline'].includes(alarm.name)||busy)return;busy=true;let c;
+ try{c=await get();if(!c?.consent)return;const s=await local(c,'status');
+  if(s.deadline_reached){await finishAtDeadline(c,s);return;}
+  if(s.finished||!c.tabId)return;
+  if(c.autoSync)await sync(c);else if(s.pending_nonce)await acknowledge(c);
+  c=await get();if(c?.consent&&c.autoUpdates)await deliver(c);
+ }catch(e){await diagnostic(alarm.name==='forge-deadline'?'deadline':'background-sync','failed');if(c){c.lastError=e.message;await put(c);}await chrome.action.setBadgeText({text:'!'});}finally{busy=false;}
 });

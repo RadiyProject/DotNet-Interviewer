@@ -64,6 +64,8 @@
   selected.forEach((m,i)=>{const marker=markerPattern.exec(m.text);if(marker){if(marker[1]!==sessionId)throw Error('Another Forge interview is present in this conversation. Use a separate ChatGPT chat.');markers.push({nonce:marker[2],confirmed:selected.slice(i+1).some(n=>n.role==='assistant'&&n.text.includes('FORGE_READY'))});return;}if(m.text.startsWith('FORGE_READY'))return;transcript.push(m);});
   return {url:location.origin+location.pathname,messages:transcript,markers};
  }
+ let lastTranscriptMutation=Date.now();
+ function transcriptActivity(){const buttons=[...document.querySelectorAll('button')].filter(b=>b.getClientRects().length>0);const idle=buttons.some(b=>/^(Start voice mode|Start voice chat|Start voice conversation|Use voice mode|Start Voice|Начать голосовой чат|Начать голосовой разговор|Запустить голосовой режим|Использовать голосовой режим)$/i.test(b.getAttribute('aria-label')||''));const speaking=buttons.some(b=>/^(End voice|End voice chat|End voice conversation|Exit voice|Close voice|Завершить голосовой чат|Завершить голосовой разговор|Выйти из голосового режима)$/i.test(b.getAttribute('aria-label')||''));return {voice_idle:idle&&!speaking&&!!composer(),transcript_stable:Date.now()-lastTranscriptMutation>2500&&!document.querySelector('button[data-testid="stop-button"],button[data-testid="stop-thinking-button"]')};}
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  function composer(){
   const visible=e=>e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden'&&!e.disabled&&!e.readOnly;
@@ -94,14 +96,14 @@
   if(sender.id!==chrome.runtime.id||!m.forge)return false;
   if(m.action==='ping'){reply({ok:true});return false;}
   if(m.action==='check-composer'){reply({state:composer()?'tab_ready':'composer_unavailable'});return false;}
-  if(m.action==='read'){try{reply(snapshot(m.sessionId,m.anchorNonce));}catch(e){reply({error:e.message});}return false;}
+  if(m.action==='read'){try{reply({...snapshot(m.sessionId,m.anchorNonce),...transcriptActivity()});}catch(e){reply({error:e.message});}return false;}
   if(m.action==='deliver'){deliver(m).then(reply);return true;}
   if(m.action==='voice'){
    const buttons=[...document.querySelectorAll('button')].filter(b=>!b.disabled&&/^(Start voice mode|Start voice chat|Start voice conversation|Use voice mode|Start Voice|Начать голосовой чат|Начать голосовой разговор|Запустить голосовой режим|Использовать голосовой режим)$/i.test(b.getAttribute('aria-label')||''));
    if(buttons.length===1){buttons[0].click();reply({state:'voice_button_clicked'});}else reply({error:'Click the native ChatGPT Voice button in the prompt bar. The companion could not identify it unambiguously.'});return false;
   }return false;
  });
- let timer;const observer=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(()=>{try{chrome.runtime.sendMessage({action:'changed'}).catch(()=>{});}catch{observer.disconnect();}},2500);});
+ let timer;const observer=new MutationObserver(()=>{lastTranscriptMutation=Date.now();clearTimeout(timer);timer=setTimeout(()=>{try{chrome.runtime.sendMessage({action:'changed'}).catch(()=>{});}catch{observer.disconnect();}},2500);});
  observer.observe(document.body,{subtree:true,childList:true,characterData:true});
  // A site-side Start click must reach ChatGPT even when the popup is closed.
  const startPoll=setInterval(()=>{try{chrome.runtime.sendMessage({action:'poll-start'}).catch(()=>{});}catch{clearInterval(startPoll);}},3000);
