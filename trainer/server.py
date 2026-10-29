@@ -274,6 +274,22 @@ class Handler(SimpleHTTPRequestHandler):
                         if session['finished']:st['summary']=MOCK.simple_summary(session)
                         MOCK.save(session,version)
                 return self.reply({'session':MOCK.public(session)})
+            if path=='/api/mock/coaching/complete':
+                with MOCK.lock:
+                    result=MOCK.route('POST',path,p,self.language)
+                    if result.get('advice'):
+                        session=MOCK.session(p.get('session_id'));version=session['state']['version']
+                        c=session['state'].get('companion',{})
+                        for item in c.get('contexts',[]):
+                            if item.get('action')=='coaching' and not item.get('delivered'):
+                                item.update(delivered=time.time(),cancelled=True)
+                        delivery='queue_full'
+                        if sum(not x.get('delivered') for x in c.get('contexts',[]))<10:
+                            COMPANION.queue(session,'coaching',result['advice']);delivery='queued'
+                        session['state']['coaching']['delivery']=delivery
+                        result['delivery']=delivery
+                        MOCK.save(session,version)
+                return self.reply(result)
             if path=='/api/mock/companion-pair': return self.reply(COMPANION.pair(p.get('session_id')))
             if path in ('/api/mock/companion-context','/api/mock/companion-cancel'):
                 with MOCK.lock:
@@ -289,6 +305,11 @@ class Handler(SimpleHTTPRequestHandler):
                             code=p.get('code','')
                             if not isinstance(code,str) or not code.strip() or len(code)>100000: raise ValueError('Enter source text, up to 100,000 characters')
                             extra={'task_id':p['task_id'],'code':code,'shared_at':time.time(),'note':'Candidate explicitly shared this code as text for discussion. Review this exact version, ask about reasoning and edge cases. This is not an executed test result.'}
+                            task=MOCK.task(p['task_id'],session['state']['language'])
+                            if task.get('review_code'):extra.update(kind='candidate_review',note='The code field contains the candidate’s review comments. The immutable source fragment is review_code in the matching bank task. Discuss their findings, ask for evidence and avoid giving the full answer unasked.')
+                            with connect() as db:
+                                exists=db.execute('SELECT id FROM interview_artifacts WHERE session_id=? AND task_id=? AND code=?',(session['id'],p['task_id'],code)).fetchone()
+                                if not exists:db.execute('INSERT INTO interview_artifacts VALUES(?,?,?,?,?)',(uuid.uuid4().hex,session['id'],p['task_id'],code,time.time()))
                             artifacts=session['state'].setdefault('shared_artifacts',[])
                             artifacts.append(extra)
                             while len(artifacts)>5 or sum(len(a['code']) for a in artifacts)>150000:artifacts.pop(0)
@@ -318,7 +339,10 @@ class Handler(SimpleHTTPRequestHandler):
             if not t: return self.reply({'error':'Неизвестная задача'},404)
             if path=='/api/draft':
                 code=str(p.get('code',''))[:100000]
-                with connect() as db: db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?)',(t['id'],code))
+                with connect() as db:
+                    db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?)',(t['id'],code))
+                    draft_attempt=db.execute('SELECT * FROM attempts WHERE id=? AND task_id=? AND finished IS NULL',(p.get('attemptId'),t['id'])).fetchone()
+                if draft_attempt:MOCK.record_attempt(draft_attempt['id'],code)
                 return self.reply({'ok':True})
             if path=='/api/start':
                 now=time.time()
@@ -329,12 +353,14 @@ class Handler(SimpleHTTPRequestHandler):
                         aid=uuid.uuid4().hex
                         db.execute('INSERT INTO attempts(id,task_id,started,deadline) VALUES(?,?,?,?)',(aid,t['id'],now,now+t['minutes']*60))
                         a=db.execute('SELECT * FROM attempts WHERE id=?',(aid,)).fetchone()
+                MOCK.link_attempt(p.get('session_id'),a)
                 return self.reply({'attempt':dict(a),'serverTime':now})
             with connect() as db:
                 db.execute('BEGIN IMMEDIATE')
                 a=db.execute('SELECT * FROM attempts WHERE id=? AND task_id=?',(p.get('attemptId',''),t['id'])).fetchone()
             if not a: return self.reply({'error':'Сначала начни попытку'},409)
             if a['finished']: return self.reply({'error':'Попытка уже завершена'},409)
+            if p.get('session_id'):MOCK.link_attempt(p['session_id'],a)
             if path=='/api/check':
                 if t['engine'] not in ('csharp','postgres','sqlite'):
                     return self.reply({'error':'Автопроверка доступна для задач C# и SQL'},400)
@@ -343,14 +369,17 @@ class Handler(SimpleHTTPRequestHandler):
                 code=str(p.get('code',''))[:100000]
                 with connect() as db:
                     db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?)',(t['id'],code))
+                MOCK.record_attempt(a['id'],code,{'status':'checking','preview':True})
                 result=execute(t,code)
                 result['preview']=True
+                MOCK.record_attempt(a['id'],code,result)
                 return self.reply(result)
             if path=='/api/reveal':
                 with connect() as db: db.execute('UPDATE attempts SET revealed=1 WHERE id=?',(a['id'],))
                 return self.reply({'answer':explanation(t),'hints':t.get('hints',[])})
             if path!='/api/submit': return self.reply({'error':'Не найдено'},404)
             now=time.time(); code=str(p.get('code',''))[:100000]
+            MOCK.record_attempt(a['id'],code,{'status':'checking'})
             # Claim attempt atomically before execution; prevents parallel duplicate submissions.
             with connect() as db:
                 cur=db.execute('UPDATE attempts SET finished=?,code=?,result=? WHERE id=? AND finished IS NULL',(now,code,json.dumps({'status':'checking','score':0}),a['id']))
@@ -375,6 +404,7 @@ class Handler(SimpleHTTPRequestHandler):
                     db.execute('UPDATE attempts SET finished=NULL,result=NULL WHERE id=?',(a['id'],))
                 else: db.execute('UPDATE attempts SET result=? WHERE id=?',(json.dumps(result,ensure_ascii=False),a['id']))
                 db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?)',(t['id'],code))
+            MOCK.record_attempt(a['id'],code,result)
             return self.reply(result)
         except (ValueError,KeyError,TypeError) as exc: return self.reply({'error':str(exc)},400)
         except Exception as exc: return self.reply({'error':'Ошибка сервера: '+str(exc)[:500]},500)

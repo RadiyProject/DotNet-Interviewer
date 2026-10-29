@@ -10210,5 +10210,891 @@
     "answer": "Use explicit domain results or distinct exceptions. Possible mappings include invalid input to 400, confirmed absence to 404, temporary unavailability to 503, or 502/504 for appropriate upstream semantics; none is universal. Propagate caller cancellation rather than calling it an unknown currency. Define failure-cache/retry policies to avoid hammering the provider.",
     "kind": "Architecture · rubric",
     "origin": "Original training exercise informed by the supplied async-caching analysis and Microsoft documentation. Not a copy of the video author’s source archive."
+  },
+  "A55": {
+    "title": "HTTP/async: review a weather client",
+    "kind": "Code review · written exercise",
+    "desc": "The injected HttpClient is owned by DI and has BaseAddress configured. Contract: 404 returns null; all other unsuccessful statuses throw HttpRequestException; caller cancellation propagates. Requests may be concurrent. This task requires no retries.",
+    "requirements": [
+      "Review the fragment: for each material finding give a line/expression, failure scenario, severity and minimal fix.",
+      "Separate definite defects, conditional risks and style preferences. Explain at least two properties already handled correctly.",
+      "Propose checks that reproduce the problems. Do not claim code or tests were executed.",
+      "This is a written exercise: the fragment is separate and your comments are saved in the editor. Self-assessment and AI feedback are not executable tests."
+    ],
+    "starter": "Findings (severity → line → scenario → fix):\n\nWhat is already correct:\n\nClarifying questions and assumptions:\n\nVerification plan:\n",
+    "hints": [
+      "Start with the contract and a concrete failure scenario. Do not treat a style preference as a defect."
+    ],
+    "review": [
+      "HttpClient and response ownership",
+      "Sync-over-async with a calibrated risk statement",
+      "HTTP contract, URL encoding and cancellation",
+      "Minimal fixes and reproducible scenarios"
+    ],
+    "answer": "The using disposes a DI-owned client, so later calls may fail. Dispose each response instead. .Result blocks a thread; an ASP.NET Core deadlock is not inevitable, but blocking and starvation under load are relevant. Cancellation is not forwarded to HTTP or JSON. Raw city can alter the query for &, # and similar characters. Non-success statuses are incorrectly collapsed into null instead of distinguishing 404. Use awaited HTTP with encoded input and ct, dispose the response, handle 404 and throw for other failures, then deserialize with ct. Positive aspects: DI enables client reuse, success is checked before JSON, and the nullable result permits not-found semantics; the current using defeats intended ownership. Check repeated calls, response disposal, A&B, 404/500 and cancellation. Do not impose retries outside the contract.",
+    "origin": "Original training exercise. The deliberately flawed fragment is not executed automatically."
+  },
+  "A56": {
+    "title": "EF Core: review a transfer and event publication",
+    "kind": "Code review · written exercise",
+    "desc": "A relational EF Core provider supports transactions. Accounts have TenantId, Id, Balance and a Version concurrency token. Tenant comes from auth; no global filters or ambient transaction exist. Require positive amount, distinct same-tenant accounts, no overdraft and an event consistent with a completed transfer.",
+    "requirements": [
+      "Review the fragment: for each material finding give a line/expression, failure scenario, severity and minimal fix.",
+      "Separate definite defects, conditional risks and style preferences. Explain at least two properties already handled correctly.",
+      "Propose checks that reproduce the problems. Do not claim code or tests were executed.",
+      "This is a written exercise: the fragment is separate and your comments are saved in the editor. Self-assessment and AI feedback are not executable tests."
+    ],
+    "starter": "Findings (severity → line → scenario → fix):\n\nWhat is already correct:\n\nClarifying questions and assumptions:\n\nVerification plan:\n",
+    "hints": [
+      "Start with the contract and a concrete failure scenario. Do not treat a style preference as a defect."
+    ],
+    "review": [
+      "Tenant isolation and input invariants",
+      "Atomicity across SaveChanges calls",
+      "Concurrency token and sufficient funds",
+      "External event and uncertain outcomes",
+      "Errors/cancellation must not become success"
+    ],
+    "answer": "TenantId is unused. Validate positive amount, distinct accounts and sufficient funds. The existing concurrency token can detect conflicts but does not replace business validation; specify conflict/retry policy. The first SaveChanges commits debit without a shared transaction, allowing partial transfers. The external event precedes credit and cannot be rolled back by a DB transaction. Persist both balance changes atomically; use a transactional outbox and idempotent consumption for event consistency, without exactly-once claims. The catch falsely reports success, including on cancellation. Positive aspects include ct forwarding, awaited async operations and tracked changes. Check cross-tenant access, invalid amounts, same account, insufficient funds, version conflicts and failures after debit. Version is present by assumption; do not falsely claim there is no concurrency control.",
+    "origin": "Original training exercise. The deliberately flawed fragment is not executed automatically."
+  },
+  "A57": {
+    "title": "SQL review: a report with row multiplication",
+    "kind": "Code review · written exercise",
+    "desc": "PostgreSQL. Customers(TenantId,Id), Orders(TenantId,Id,CustomerId,CreatedAt), OrderItems(TenantId,OrderId,Qty,UnitPrice), Payments(TenantId,OrderId,Amount,Status). IDs are tenant-scoped. Include every customer of a tenant, even without orders. Use [from,to); calculate order count, item revenue and Captured payments independently. Driver parameters are used, not concatenation.",
+    "requirements": [
+      "Review the fragment: for each material finding give a line/expression, failure scenario, severity and minimal fix.",
+      "Separate definite defects, conditional risks and style preferences. Explain at least two properties already handled correctly.",
+      "Propose checks that reproduce the problems. Do not claim code or tests were executed.",
+      "This is a written exercise: the fragment is separate and your comments are saved in the editor. Self-assessment and AI feedback are not executable tests."
+    ],
+    "starter": "Findings (severity → line → scenario → fix):\n\nWhat is already correct:\n\nClarifying questions and assumptions:\n\nVerification plan:\n",
+    "hints": [
+      "Start with the contract and a concrete failure scenario. Do not treat a style preference as a defect."
+    ],
+    "review": [
+      "Tenant participates in every join",
+      "WHERE must not discard empty outer-join rows",
+      "Date boundaries and independent aggregation",
+      "Fan-out counterexample and zero semantics",
+      "No invented SQL-injection finding for bound parameters"
+    ],
+    "answer": "Joining IDs without TenantId crosses tenant boundaries. WHERE predicates on o.CreatedAt and p.Status discard customers lacking matching children. BETWEEN includes to, contrary to [from,to). Two items and two payments create four joined rows, inflating counts and sums. COUNT(DISTINCT o.Id) fixes only the count; SUM(DISTINCT amount) incorrectly merges equal legitimate payments. Aggregate items and captured payments independently, filter orders by tenant and period, join to customers and COALESCE absent totals to zero. Positive aspects: bound parameters, explicit money arithmetic and customer grouping. Check empty customers, unpaid orders, equal captured payments with multiple items, overlapping tenant IDs and a row exactly at to. Do not invent SQL injection for bound parameters.",
+    "origin": "Original training exercise. The deliberately flawed fragment is not executed automatically."
+  },
+  "A58": {
+    "title": "Async cache review: races and permit ownership",
+    "kind": "Code review · written exercise",
+    "desc": "Contract: five-minute TTL after successful loading; eur and EUR identify one currency; null and exceptions are not cached. Independent currencies may load concurrently within a process. load accepts CancellationToken. Gate waiting is bounded by five seconds; failures must not become fresh entries. _cache is ConcurrentDictionary<string,Entry>; _locks is ConcurrentDictionary<string,SemaphoreSlim>; Entry has decimal? Rate and DateTimeOffset SavedAt.",
+    "requirements": [
+      "Review the fragment: for each material finding give a line/expression, failure scenario, severity and minimal fix.",
+      "Separate definite defects, conditional risks and style preferences. Explain at least two properties already handled correctly.",
+      "Propose checks that reproduce the problems. Do not claim code or tests were executed.",
+      "This is a written exercise: the fragment is separate and your comments are saved in the editor. Self-assessment and AI feedback are not executable tests."
+    ],
+    "starter": "Findings (severity → line → scenario → fix):\n\nWhat is already correct:\n\nClarifying questions and assumptions:\n\nVerification plan:\n",
+    "hints": [
+      "Start with the contract and a concrete failure scenario. Do not treat a style preference as a defect."
+    ],
+    "review": [
+      "Normalize before both dictionaries",
+      "Acquisition result and cancellation",
+      "Recheck and timestamp after loading",
+      "Gate lifetime and null policy",
+      "No invented global gate or cross-process guarantee"
+    ],
+    "answer": "acquired is ignored: false permits unprotected entry and an extra release. A canceled WaitAsync occurs before try, so that path does not execute finally; do not invent that defect. Normalizing only the loader leaves separate cache/gate entries for eur/EUR. There is no post-wait recheck; SavedAt is captured before loading; null is cached against the contract; the loader receives no ct. TryRemove can split old waiters and new arrivals between different gates. Normalize before lookup, handle false before entering the owner try/finally, recheck, forward ct and publish non-null results after loading. Positive foundations: assumed concurrent containers, async waiting with ct, per-key gates and a finally appropriate once ownership is established. GetOrAdd creates a gate, not the business load; its mere use is not a defect. Check occupied-gate timeout, casing, multiple waiters, slow loading, null and cancellation.",
+    "origin": "Original training exercise. The deliberately flawed fragment is not executed automatically."
+  },
+  "A59": {
+    "title": "Dapper: deferred reading after disposal",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "Dapper and Npgsql are used. _dataSource.OpenConnection() returns a new open connection owned by this method. The caller enumerates after the method returns. tenantId comes from auth, parameters are bound, and result sets may be large.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Reader/connection lifetime",
+      "Buffered versus streaming",
+      "No invented SQL injection",
+      "Early termination and failure"
+    ],
+    "answer": "With buffered:false, Query returns deferred enumeration. The using disposes the connection before rows are read. Materialize inside the scope for bounded results, or keep connection lifetime inside an iterator/async iterator and release on completion, early exit or failure. Do not promise streaming while disposing before enumeration. Positives: tenant filtering, parameter binding and a narrow projection; injection is not established. Clarify ordering, cancellation and size limits rather than inventing an ordering contract. Check enumeration after return, early termination, reader failure and a large result set.",
+    "origin": "Original exercise informed by DapperLib/Dapper, Dapper/SqlMapper.cs, commit eb47546a408b. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A60": {
+    "title": "Polly: payment retries and cooperative timeout",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "Polly v8. The provider can charge successfully and then lose the response or return 500. This call supplies no idempotency key. Avoid duplicate charges and honor an overall request budget. _http is reused and payload is valid.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Idempotency and unknown outcomes",
+      "Callback token and budget",
+      "Attempt count and predicate",
+      "Response ownership"
+    ],
+    "answer": "An unknown outcome of a non-idempotent charge is not safe to retry blindly. Require provider-supported idempotency/status reconciliation or disable unsafe retries. Three retries permit up to four calls. The callback ignores the pipeline token: cooperative timeout does not prove HTTP termination or reversal of a charge. Timeout inside retry is per attempt; define a separate total budget. A failing EnsureSuccessStatusCode path leaks its response. Handling every HttpRequestException also conflates HTTP failure categories. Do not claim TimeoutRejectedException is automatically retried by this predicate. Positives: client reuse, explicit strategy settings and ct supplied to ExecuteAsync. Check applied-but-response-lost charges, 400/500, cancellation, total budget and response disposal.",
+    "origin": "Original exercise informed by App-vNext/Polly, docs/strategies/retry.md, commit e3b73ae5e5b4. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A61": {
+    "title": "RabbitMQ: ack before processing and redelivery",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "RabbitMQ.Client 7.x, manual ack, prefetch=16 and ConsumerDispatchConcurrency=4. _processor persists a business effect but does not record processed MessageIds. Require at-least-once processing with duplicate-effect protection. Connection and channel outlive the consumer.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Commit/ack order",
+      "Multiple acknowledgments with concurrent callbacks",
+      "Deduplication and poison messages",
+      "Recognize correct consumer aspects"
+    ],
+    "answer": "An early ack prevents redelivery after Apply fails. multiple:true can acknowledge earlier delivery tags still being processed concurrently. Ack the specific delivery after durable processing; define retry/dead-letter handling rather than infinite requeue. Commit then ack still has a duplicate window after a crash, requiring MessageId/inbox/idempotent effects. Logging cannot undo an ack. Positives: copying the body within the callback, an async consumer and manual acknowledgment mode. Neither exactly-once nor early-ack safety follows from a durable queue. Check processor failure, crash after commit, out-of-order concurrent completion and poison messages.",
+    "origin": "Original exercise informed by rabbitmq/rabbitmq-tutorials, dotnet/Worker/Worker.cs, commit e40db40c3a4a. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A62": {
+    "title": "Outbox: marking published before publishing",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "PostgreSQL. Business changes and the outbox row are already committed atomically. Two dispatchers read the table; processes and the broker can fail. Each event has a stable Id. Persisted events must not be silently lost; duplicates require safe consumer handling.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Loss and duplicate windows",
+      "Dispatcher claiming and recovery",
+      "At-least-once without exactly-once claims",
+      "No invented producer defect"
+    ],
+    "answer": "Marking published before confirmed publication permits silent loss on a crash or broker failure. Marking after publish avoids that loss but still permits duplicates if the process crashes before saving. Two dispatchers can select the same rows; use atomic claiming/locking/leases with recovery rather than a long DB transaction around network I/O. Stable IDs support consumer deduplication; broker confirmation and idempotency are different guarantees. Define retries, attempts, backoff and observability. Positives: atomic business/outbox persistence is already guaranteed, stable IDs, a bounded batch and ct forwarding. Do not falsely claim missing producer atomicity. OrderBy is contract-dependent; clarify ordering separately. Check crash windows, competing claims, lease expiry and broker outage.",
+    "origin": "Original exercise informed by dotnet/eShop, src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs, commit 913acea66708. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A63": {
+    "title": "Channels: bounded queue, unbounded processing",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "One process and one reader; HandleAsync is thread-safe. Require explicit backpressure or explicit rejection, at most four concurrent handlers and accounting for accepted jobs during graceful shutdown. Crash durability is not required.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "TryWrite result",
+      "Capacity versus concurrency",
+      "Failures and shutdown",
+      "No invented persistence requirement"
+    ],
+    "answer": "TryWrite returns false when a Wait-mode queue is full, but the result is discarded. The reader drains into fire-and-forget tasks, so capacity=16 does not bound handler concurrency. Neither task failures nor completion are tracked, and handler cancellation is ignored. Use awaited WriteAsync or explicit rejection, four awaited workers or another actual concurrency bound, failure accounting and a drain/shutdown policy. SingleReader is consistent with the stated single reader. An external durable broker is not required by this in-process contract. Check full-queue behavior, blocked handlers, maximum concurrency, one job failure and graceful stopping.",
+    "origin": "Original exercise informed by dotnet/runtime, src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs, commit 523349107aca. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A64": {
+    "title": "TaskCompletionSource: response/cancellation race",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "_pending is ConcurrentDictionary<string,TaskCompletionSource<string>>. Correlation IDs must stay unique until completion. Responses and cancellation can race, and consumers have arbitrary continuations. Cancellation must remove the pending registration. Only Complete uses _sync.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Correlation-ID lifecycle",
+      "TrySet and completion races",
+      "Inline continuations under lock",
+      "Cleanup and stale callbacks"
+    ],
+    "answer": "The indexer overwrites a live ID, leaving its original task pending. Racing SetCanceled and SetResult can throw; coordinate removal and completion using TrySet variants. Cancellation leaves the registry entry behind, and registrations need disposal on completion. A stale callback must not remove a newer registration reusing the ID; conditionally remove its own entry or define lifecycle rules. Default TCS permits inline continuations, so SetResult under a lock may execute arbitrary consumer code inside the critical section. Complete outside the lock and/or use RunContinuationsAsynchronously with a lifecycle protocol. Deadlock is a risk, not an inevitable result of every SetResult. Positives: exposing the consumer Task, removing on Complete and atomic TryRemove. TCS thread safety does not make the whole registry protocol atomic. Check duplicate IDs, cancel/response races, late responses, slow/reentrant continuations and cleanup.",
+    "origin": "Original exercise informed by dotnet/runtime, src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs, commit 523349107aca. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A65": {
+    "title": "EF Core: cursor without unique ordering",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "CreatedAt is immutable but not unique. Id is an integer unique within a tenant. tenantId is trusted and size is already validated as 1..100. Require forward pagination without repeated rows for an unchanged data set; a global snapshot across concurrent inserts is not promised.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Repeat/skip at equal timestamps",
+      "Unique ordering and composite cursor",
+      "Seek/order agreement",
+      "Credit existing safeguards"
+    ],
+    "answer": ">= repeats boundary rows. Switching to > without a tie-breaker skips other rows sharing the date. Use ordering by CreatedAt then Id, a two-field cursor and the matching lexicographic seek predicate. Size validation and tenant filtering are already given, not missing. AsNoTracking, projection, Take and ct are positive features. Align ordering and continuation criteria; clarify serialization precision/timezone and filter binding. Keyset alone does not promise a global snapshot, and offset pagination is not a mandatory fix. Check more than one page sharing a timestamp, exact boundaries, an empty final page and tenant isolation.",
+    "origin": "Original exercise informed by dotnet/EntityFramework.Docs, samples/core/Querying/Pagination/Program.cs, commit b0c8daf21d4d. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A66": {
+    "title": "EF Core: parallel queries on one DbContext",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "A conventional relational EF Core provider is used, with one scoped _db per request and no serialization wrapper. This is an API hot path. Return a tenant’s totals and recent orders; a consistent snapshot across both SELECTs is not currently required.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "WhenAll does not serialize",
+      "DbContext ownership and alternatives",
+      "Snapshot-consistency boundaries",
+      "Evidence with a relational provider"
+    ],
+    "answer": "The second operation may start before the first completes on the same DbContext, which EF Core does not support. WhenAll waits for already-started tasks; it does not serialize them. Await sequentially or use separate, properly owned contexts while considering pool capacity. Separate contexts do not automatically provide a shared snapshot; discuss isolation, transactions or a combined query only if required. Positives: tenant filtering on both queries, a bounded recent-results query, ct forwarding and no unnecessary Task.Run. Do not invent injection or a balance-update race: these are reads and snapshot consistency is not required. Check controlled overlapping queries using an interceptor/real provider rather than only InMemory happy paths.",
+    "origin": "Original exercise informed by dotnet/EntityFramework.Docs, entity-framework/core/dbcontext-configuration/index.md, commit b0c8daf21d4d. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "A67": {
+    "title": "Keyset pagination: deciding whether to approve a PR",
+    "kind": "Code review · GitHub-informed scenario",
+    "desc": "CreatedAt is immutable; (TenantId,Id) is unique. tenantId comes from auth. size is validated as 1..100. This is a subsequent page: the validated cursor belongs to the same filters; encoding/decoding preserves timestamp and ID precision. OrderRow is a reference record. Require forward pagination without repeats for an unchanged set, not global snapshot consistency, reverse paging or total counts. Decide whether to approve or request changes; no blocking defects is a valid conclusion.",
+    "requirements": [
+      "For each finding give a line/expression, priority, reproducible scenario, minimal fix and verification step.",
+      "Separate defects, conditional risks and style. Identify at least two correct aspects. Do not invent requirements contradicted by the statement.",
+      "The fragment below is an original exercise informed by the inspected GitHub material. Exercise defects are not attributed to the repository authors.",
+      "Write your review in the editor. This is a written exercise: the fragment is not executed. Request Codex CLI feedback or discuss it with a voice interviewer."
+    ],
+    "starter": "Findings (priority → line → scenario → fix):\n\nWhat is already correct:\n\nQuestions and limitations:\n\nVerification plan:\n",
+    "hints": [
+      "Show a concrete failure scenario or interleaving and check assumptions against the statement and API contract."
+    ],
+    "review": [
+      "Validate invariants and boundaries",
+      "A justified approval is valid",
+      "Do not mislabel optimizations as defects",
+      "Propose checks without inventing requirements"
+    ],
+    "answer": "No material defect is established under this contract: trusted tenant filtering, a tenant-unique composite key, strict lexicographic continuation matching ordering, bounded projection and cancellation are present. Approval is a valid conclusion. AsNoTracking may be redundant for DTO projection, but that is not a correctness defect. Discuss an index on TenantId/CreatedAt/Id using plans and load; absence from this fragment does not prove absence in the database. Do not require total counts, reverse navigation, cursor cryptography or a global snapshot when out of scope or already supplied. Ask for equal-date, ID-boundary, empty-end, tenant-isolation and cursor-serialization checks. A stylistic alternative ordering of Where and OrderBy is not itself a defect.",
+    "origin": "Original exercise informed by dotnet/EntityFramework.Docs, samples/core/Querying/Pagination/Program.cs, commit b0c8daf21d4d. Not an unchanged upstream fragment or an allegation of an upstream defect."
+  },
+  "Q173": {
+    "title": "CDC, Debezium and Event Sourcing",
+    "desc": "CDC, Debezium and Event Sourcing",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "CDC captures data changes; it is not inherently a history of domain intent",
+      "Any CDC table automatically becomes an event store",
+      "Debezium replaces application transactions",
+      "CDC means only periodically selecting every row"
+    ],
+    "answer": "A row change does not explain business intent. CDC, integration events and Event Sourcing have different contracts.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q174": {
+    "title": "Debezium stopped: why is WAL growing?",
+    "desc": "Debezium stopped: why is WAL growing?",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "An unconsumed logical replication slot can retain WAL",
+      "The slot can safely be dropped without a recovery plan",
+      "Inspect retained WAL, free disk and connector health",
+      "Clearing Kafka offsets always preserves continuity"
+    ],
+    "answer": "The slot participates in recovery. Removing it without a controlled recovery plan can create a data gap.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q175": {
+    "title": "Debezium snapshot: operation r",
+    "desc": "Debezium snapshot: operation r",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "r represents a snapshot row read and cannot blindly be ignored when building a projection",
+      "r always means rollback",
+      "Snapshots automatically eliminate every failure-related duplicate",
+      "A snapshot replaces subsequent streaming"
+    ],
+    "answer": "Initial state and streaming changes must work together; reprocessing must be anticipated.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q176": {
+    "title": "Are delete events and tombstones the same?",
+    "desc": "Are delete events and tombstones the same?",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "Delete/tombstone behavior depends on transformation settings",
+      "After unwrapping, every delete always looks like an ordinary update",
+      "The projection deletion contract must be verified explicitly",
+      "Every null-value message means a new zero balance"
+    ],
+    "answer": "Do not transfer raw-envelope assumptions to a transformed topic: inspect configuration and deletion test records.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q177": {
+    "title": "Outbox Event Router: key and identity",
+    "desc": "Outbox Event Router: key and identity",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "aggregateid can provide the message key while id identifies the event",
+      "Event id and player id must be identical",
+      "The SMT creates a shared transaction between Kafka and the balance database",
+      "Using an SMT removes the need for an event contract"
+    ],
+    "answer": "The aggregate key serves routing; the event ID distinguishes events and supports deduplication. These roles differ.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q178": {
+    "title": "SQL Server CDC: what must the consumer account for?",
+    "desc": "SQL Server CDC: what must the consumer account for?",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "The retention window and read position",
+      "CDC retains changes forever without configuration",
+      "Reading after the required range was cleaned up requires recovery",
+      "CDC automatically applies changes to every external system"
+    ],
+    "answer": "CDC history has operational limits; read continuity and recovery belong to the integration design.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q179": {
+    "title": "Kafka: PlayerId key and ordering",
+    "desc": "Kafka: PlayerId key and ordering",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "Ordering is per partition, not globally across the topic",
+      "Adding consumers gives unlimited parallelism for one key",
+      "A PlayerId key alone makes debit and credit atomic in PostgreSQL",
+      "Repartitioning never requires an ordering analysis"
+    ],
+    "answer": "The key contract and in-partition processing determine processing order. A hot player remains a separate load concern.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q180": {
+    "title": "Kafka exactly-once and an external database",
+    "desc": "Kafka exactly-once and an external database",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "A Kafka transaction does not itself make an external SQL update atomic with an offset",
+      "An idempotent producer eliminates all duplicate business commands",
+      "An external effect needs its own idempotency/coordination protocol",
+      "acks=all means every consumer processed the event"
+    ],
+    "answer": "Transport guarantees must not be presented as atomicity for an arbitrary external effect.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q181": {
+    "title": "Offsets with parallel processing in one partition",
+    "desc": "Offsets with parallel processing in one partition",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "Commit after the highest completed offset even if lower offsets are unfinished",
+      "Commit must account for the contiguous completed range",
+      "Partition ownership loss during rebalance must be handled",
+      "Auto commit replaces waiting for business processing"
+    ],
+    "answer": "Do not skip unfinished work; ownership loss requires coordinating in-flight processing.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q182": {
+    "title": "Is an idempotent producer enough for a reward?",
+    "desc": "Is an idempotent producer enough for a reward?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "No: a repeated business submission can be a distinct valid Kafka record",
+      "Yes: the user can never receive a duplicate reward",
+      "Yes: it prevents repeated HTTP requests",
+      "It replaces the ledger operation’s unique key"
+    ],
+    "answer": "Transport retry deduplication and business-operation identity are different layers.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q183": {
+    "title": "Poison events and player-operation ordering",
+    "desc": "Poison events and player-operation ordering",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "Blindly skipping an error and continuing is always safe",
+      "Retry/DLQ policy must account for ordering and whether skipping is allowed",
+      "An observable repair and replay path is needed",
+      "An infinite tight-loop retry has no operational cost"
+    ],
+    "answer": "For dependent financial operations, skipping can change subsequent command semantics. A DLQ is a policy choice, not proof of correctness.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q184": {
+    "title": "Does a C4 container necessarily mean Docker?",
+    "desc": "Does a C4 container necessarily mean Docker?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "No: it is an application or data store at that abstraction level",
+      "Yes: C4 models Docker containers only",
+      "Every C4 model must include all four levels",
+      "A context diagram must show every C# class"
+    ],
+    "answer": "Choose the level useful to the audience; context and container are often enough. Deployment is modeled separately.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q185": {
+    "title": "How should a reward-granting sequence be modeled?",
+    "desc": "How should a reward-granting sequence be modeled?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "A sequence diagram fits interactions and alternative paths",
+      "A class diagram alone proves HTTP and DB-commit order",
+      "A diagram replaces implementing the transaction protocol",
+      "Every arrow guarantees exactly-once"
+    ],
+    "answer": "Show participants, messages and failure/retry branches; runtime properties must be implemented and verified.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q186": {
+    "title": "EF Core: concurrent reward updates",
+    "desc": "EF Core: concurrent reward updates",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "A concurrency token can detect an update conflict",
+      "After a conflict, the stale absolute balance can always be written again",
+      "A retry must reevaluate state and business invariants",
+      "One scoped DbContext serializes all application replicas"
+    ],
+    "answer": "Conflict detection does not choose the business resolution. Reward uniqueness and retry behavior must be coordinated.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q187": {
+    "title": "Redis lock as the only balance safeguard",
+    "desc": "Redis lock as the only balance safeguard",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "Lease expiry can let a second worker start while the first still runs",
+      "Deleting a lock without checking ownership is always safe",
+      "The critical invariant must also be protected in the system of record",
+      "Any lock automatically makes an SQL transaction idempotent"
+    ],
+    "answer": "Consider pauses and ownership loss; coordination does not replace write constraints and protocols.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q188": {
+    "title": "Spec-Driven Development for AI coding",
+    "desc": "Spec-Driven Development for AI coding",
+    "kind": "Theory · multiple choice",
+    "requirements": [
+      "Select all correct options; an exact match is required."
+    ],
+    "choices": [
+      "Agreeing invariants and verifiable criteria before generation is useful",
+      "A specification guarantees zero defects without independent verification",
+      "Requirement changes should be reflected in the specification and checks",
+      "Every AI tool implements one mandatory SDD standard"
+    ],
+    "answer": "This is a requirements-and-implementation workflow, not a quality guarantee for generated output.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "Q189": {
+    "title": "AI-generated admin API: where must access be checked?",
+    "desc": "AI-generated admin API: where must access be checked?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Select the best answer."
+    ],
+    "choices": [
+      "Only in a hidden frontend button",
+      "On the server, including access to the specific tenant/resource",
+      "Authentication itself allows any operation for every customer",
+      "TenantId from the request body is automatically trusted"
+    ],
+    "answer": "The UI is not a security boundary. Server-side operation and resource authorization are required.",
+    "origin": "Original training scenario based on a senior backend role and primary documentation; not attributed to an actual employer interview."
+  },
+  "A68": {
+    "title": "Debezium: review balance-capture configuration",
+    "desc": "The connector reads PostgreSQL. Another active connector already uses slot.name=shared_slot. Existing players require initial loading and restart recovery without intentional gaps. Pin PostgreSQL and Debezium versions before proposing changes. Review the JSON.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Separate history-loss risks, slot conflicts and initial loading",
+      "Propose rollout and INSERT/UPDATE/DELETE/restart verification",
+      "Describe WAL/lag/disk monitoring and restricted privileges",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Separate history-loss risks, slot conflicts and initial loading",
+      "Propose rollout and INSERT/UPDATE/DELETE/restart verification",
+      "Describe WAL/lag/disk monitoring and restricted privileges"
+    ],
+    "answer": "Independent connectors need separate slots; dropping on stop risks recovery. no_data does not load existing rows. Verify snapshot modes and publication handling for the pinned versions. Configuration repair does not recover already lost changes: arrange a consistent backfill and reconciliation.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A69": {
+    "title": "CDC projection: snapshot, replay and player deletion",
+    "desc": "Design a PostgreSQL projection from a Debezium stream. The source PK is (TenantId,PlayerId). after.balance is an absolute balance, not a delta. Inputs include snapshot r, update u, delete d, tombstones, duplicates and replay. Additional version metadata is allowed, but specify its origin.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Write pseudocode/SQL for applying changes and storing checkpoints",
+      "Explain deduplication and stale-write protection",
+      "Provide input sequences with expected state",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Write pseudocode/SQL for applying changes and storing checkpoints",
+      "Explain deduplication and stale-write protection",
+      "Provide input sequences with expected state"
+    ],
+    "answer": "Upsert absolute state instead of adding balance. Include tenant in the key. Compare versions only within a defined source ordering; arbitrary LSNs/offsets across partitions are not a global business version. Handle deletes/tombstones according to the envelope/SMT contract. Coordinate checkpoint and effect transactionally or make replay safe. Verify r,u,duplicate-u,d,tombstone and a late old record.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A70": {
+    "title": "Kafka/.NET: reward before database commit",
+    "desc": "Partial consumer fragment. Delivery may repeat. RewardEvent has a unique EventId and positive Amount. The database initially has no EventId uniqueness constraint; the handler can crash. A reward must neither be applied twice nor lost after offset commit. Identify defects and sketch a transactional fix.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Show crash windows and ordering loss from Task.Run",
+      "Coordinate inbox, balance update and transaction",
+      "Add duplicate/concurrency/rebalance checks",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Show crash windows and ordering loss from Task.Run",
+      "Coordinate inbox, balance update and transaction",
+      "Add duplicate/concurrency/rebalance checks"
+    ],
+    "answer": "Committing before the effect loses work on failure. Fire-and-forget hides errors and complicates partition ownership; a captured DbContext is unsuitable for concurrent work. Use a context per unit of work, atomic inbox plus effect with unique (tenant,eventId), and commit after a contiguous completed range. Replay after DB commit must be a no-op. Merely moving Commit down is insufficient.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A71": {
+    "title": "Player balance: ledger, retries and concurrent debit",
+    "desc": "Multiple tenants use two currencies. Spend(operationId,playerId,currency,amount) may be retried after timeout; operations can race. Within one PostgreSQL database, prevent negative balances and duplicate effects. Design the SQL schema, transaction and API responses.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Define uniqueness, amount types and tenant/currency boundaries",
+      "Describe concurrency, idempotency and payload conflict",
+      "Provide at least six checks including failure after commit",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Define uniqueness, amount types and tenant/currency boundaries",
+      "Describe concurrency, idempotency and payload conflict",
+      "Provide at least six checks including failure after commit"
+    ],
+    "answer": "Bind unique tenant+operationId to canonical request parameters/hash and outcome. A changed payload conflicts. Balance update and operation record are atomic; a guarded UPDATE or suitable locking prevents concurrent overspending. Avoid binary floating point. Operation history supports reconciliation; reversals are separate operations. If an external event is needed, persist its outbox record in the same transaction.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A72": {
+    "title": "Gamification: C4 and UML from request to analytics",
+    "desc": "Design a training platform: an administrator configures rules, a player earns rewards, PostgreSQL records financial effects, and Kafka/CDC updates analytics. AI proposes configuration but cannot directly change balances. Write Mermaid/PlantUML or a textual diagram specification; the editor does not automatically render diagrams.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Show context and container views, data ownership and trust boundaries",
+      "Add a reward sequence with timeout/retry and CDC lag",
+      "Justify synchronous/asynchronous contracts and an ADR",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Show context and container views, data ownership and trust boundaries",
+      "Add a reward sequence with timeout/retry and CDC lag",
+      "Justify synchronous/asynchronous contracts and an ADR"
+    ],
+    "answer": "Show people and external systems at context level; expand APIs, stores and processors at container level without confusing them with pods. The sequence identifies commit/publication, duplicates and failure. Separate authoritative balances from eventually consistent analytics; show authorization and rule versioning. Kafka/CDC must not authorize immediate spending from stale projections. Record alternatives, constraints and consequences in an ADR.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A73": {
+    "title": "CDC incident: lag, WAL and safe recovery",
+    "desc": "During a campaign, analytics lag rose from seconds to 25 minutes and the database has 12% free disk. Consumer lag and connector status are unknown. An operator proposes deleting the replication slot and offsets. Prepare initial actions and a runbook without assuming Kafka is necessarily the bottleneck.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Separate source/connector/broker/consumer/sink delay",
+      "Describe availability protection and controlled recovery",
+      "Define reconciliation, RPO/RTO and gap verification",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Separate source/connector/broker/consumer/sink delay",
+      "Describe availability protection and controlled recovery",
+      "Define reconciliation, RPO/RTO and gap verification"
+    ],
+    "answer": "Locate the delay and disk consumption rate: retained WAL, connector positions/health, broker throughput, consumer progress and sink write speed. Dropping slots/offsets is not routine cleanup: evaluate data loss and backfill. Choose load reduction or resource expansion from measurements. Agree recovery, checkpoints, idempotent replay and reconciliation; do not claim zero RPO without evidence.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A74": {
+    "title": "AI coding: admin reward without authorization",
+    "desc": "AI generated the endpoint below. Authentication middleware exists, but there is no Admin policy and the request tenant is unchecked. The generator claims the hidden button is operator-only. Amount is not validated. Review it and specify independent negative tests.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Separate authentication from operation/resource authorization",
+      "Address idempotency, audit and amount validation",
+      "Propose a safe AI suggestion-and-approval contract",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Separate authentication from operation/resource authorization",
+      "Address idempotency, audit and amount validation",
+      "Propose a safe AI suggestion-and-approval contract"
+    ],
+    "answer": "Require a server policy plus tenant/resource authorization, amount/currency validation and an authorized audit actor. Apply rewards through the invariant-enforcing service with operationId, not arbitrary ledger mutation in a controller. Check anonymous/player/cross-tenant access, retries, negative amount and failure after commit. AI suggests rule/code changes; financial permissions are not automatically delegated.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "A75": {
+    "title": "Spec-Driven Development: one reward per day",
+    "desc": "Before AI generation, specify DailyReward. Business says “one reward per player per day”; time zones, repeated HTTP requests and admin reward-size changes exist. Do not silently choose what a day means: record questions and an explicit assumption.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Define day boundaries, tenant and rule version",
+      "Write Given/When/Then cases, API and database invariants",
+      "Describe independent AI code/migration verification",
+      "Written practice: prepare a solution/plan and checks in the editor. Kafka, Debezium and diagrams are not executed automatically here; self-assessment and AI review are available."
+    ],
+    "starter": "Solution and invariants:\n\nFailure scenarios:\n\nVerification:\n",
+    "review": [
+      "Define day boundaries, tenant and rule version",
+      "Write Given/When/Then cases, API and database invariants",
+      "Describe independent AI code/migration verification"
+    ],
+    "answer": "First agree calendar versus rolling day and time zone. Business reward uniqueness differs from the HTTP idempotency key; specify both. Define when rule version and amount are chosen. Check concurrent requests, day boundaries, DST for local calendars, retries after timeout and configuration changes. Specification → plan → implementation → independent verification; generated happy-path tests do not prove invariants.",
+    "hints": [
+      "Start with the invariant and a concrete failure scenario, then explain the minimal fix."
+    ],
+    "origin": "Original training scenario based on role requirements, not a claim about the employer’s actual architecture."
+  },
+  "Q190": {
+    "title": "Unit tests: what should be verified?",
+    "desc": "Unit tests: what should be verified?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Observable behavior and boundary cases",
+      "Every private method",
+      "Only mock call counts",
+      "Only the happy path"
+    ],
+    "answer": "Behavior checks allow implementation changes without rewriting valid tests. A test should fail when the contract is broken.",
+    "origin": "Interview preparation"
+  },
+  "Q191": {
+    "title": "Why is EF InMemory insufficient for PostgreSQL tests?",
+    "desc": "Why is EF InMemory insufficient for PostgreSQL tests?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "It does not reproduce PostgreSQL SQL, constraints and transaction semantics",
+      "It is always slower than PostgreSQL",
+      "It requires Docker",
+      "It validates all SQL queries"
+    ],
+    "answer": "Test persistence against the production database engine: migrations, unique/FK constraints, LINQ translation and rollback. InMemory supports narrower checks.",
+    "origin": "Interview preparation"
+  },
+  "Q192": {
+    "title": "How should concurrent debits be tested?",
+    "desc": "How should concurrent debits be tested?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Coordinate concurrent operations and verify balance, ledger and allowed failures",
+      "Run one successful transfer",
+      "Use Thread.Sleep and assert HTTP 200",
+      "Mock DbContext"
+    ],
+    "answer": "Use separate connections/contexts, controlled overlap and invariant checks after completion. Account for retries and database constraints.",
+    "origin": "Interview preparation"
+  },
+  "Q193": {
+    "title": "How should payment idempotency be tested?",
+    "desc": "How should payment idempotency be tested?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Repeat the same key, including concurrently, and assert one financial effect",
+      "Repeat with a new key",
+      "Check only response text",
+      "Repeat only after clearing the database"
+    ],
+    "answer": "Verify ledger and balance, a repeatable result, a conflicting payload with the same key, and retry after response failure.",
+    "origin": "Interview preparation"
+  },
+  "Q194": {
+    "title": "How can eventual consistency be tested without flaky sleeps?",
+    "desc": "How can eventual consistency be tested without flaky sleeps?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Await a verifiable condition with a bounded timeout and diagnostics",
+      "Always sleep one second",
+      "Remove the timeout",
+      "Assert immediately after publishing"
+    ],
+    "answer": "Use polling or a completion signal with a deadline, unique data and last-state diagnostics. The timeout bounds the test rather than guaranteeing delivery latency.",
+    "origin": "Interview preparation"
+  },
+  "Q195": {
+    "title": "What should duplicate Kafka delivery tests verify?",
+    "desc": "What should duplicate Kafka delivery tests verify?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "A duplicate causes no second business effect; the handler recovers after failure",
+      "Only producer.Send being called",
+      "Only absence of exceptions",
+      "Global ordering across all partitions"
+    ],
+    "answer": "Inject failure between the business effect and offset commit; replay and verify deduplication, database state and subsequent processing.",
+    "origin": "Interview preparation"
+  },
+  "Q196": {
+    "title": "What does 100% code coverage show?",
+    "desc": "What does 100% code coverage show?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Measured code was executed, not that assertions verify correct behavior",
+      "There are no defects",
+      "All concurrency scenarios are covered",
+      "Integration tests are unnecessary"
+    ],
+    "answer": "Coverage helps locate untested areas. Assertion quality, boundaries and realistic failures require separate assessment.",
+    "origin": "Interview preparation"
+  },
+  "Q197": {
+    "title": "How should database integration tests be isolated?",
+    "desc": "How should database integration tests be isolated?",
+    "cat": "Testing",
+    "kind": "Theory",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "choices": [
+      "Unique data/schema or a separate database and controlled cleanup; account for parallelism",
+      "One shared tenant and execution order",
+      "Disable constraints",
+      "Always rely on an outer rollback"
+    ],
+    "answer": "An outer rollback does not isolate services with independent connections or background consumers. Isolation must cover actual processing boundaries.",
+    "origin": "Interview preparation"
   }
 }

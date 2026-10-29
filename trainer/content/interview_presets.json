@@ -1,0 +1,412 @@
+[
+  {
+    "id": "igaming-rehearsal",
+    "title": {
+      "ru": "iGaming · техинтервью с упором на БД · 60 минут",
+      "en": "iGaming · database-focused technical interview · 60 minutes"
+    },
+    "description": {
+      "ru": "Под твою вакансию: час с техлидом без лайв-кодинга. Основной акцент — БД/SQL, high-load и баланс игрока; затем Kafka/CDC и AI. Четыре коротких устных кейса, а не четыре полных письменных задания.",
+      "en": "Tailored to your vacancy: one hour with a tech lead, no live coding. Databases/SQL, high load and wallets first; Kafka/CDC and AI next. Four short verbal cases rather than four full written assignments."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "Q022",
+      "Q164",
+      "T09",
+      "Q018",
+      "Q019",
+      "A57",
+      "Q023",
+      "Q153",
+      "Q158",
+      "A56",
+      "Q186",
+      "A71",
+      "Q173",
+      "Q177",
+      "Q180",
+      "Q188"
+    ],
+    "guide": {
+      "ru": [
+        "До старта запиши и проговори самопрезентацию на 90 секунд: твоя роль, устройство системы, личная зона ответственности и связь опыта с этой вакансией.",
+        "Защити два кейса из резюме: SQL 970 → 310 мс и рост throughput на 37,3%. Для каждого: исходная нагрузка, диагностика, конкретная правка, способ измерения, компромиссы. Если точные данные не помнишь, обозначь это; не восстанавливай их выдумкой.",
+        "Для платежей 1,02% → 0,69% объясни определение ошибки, период и источник метрики, роль повторов и идемпотентности. Для high-load назови известные RPS, p95/p99, объём данных, пики и bottleneck; DAU сам по себе нагрузку не описывает.",
+        "Debezium обсуждай честно: production-опыта нет; сопоставь CDC с outbox и теми механизмами доставки, которые действительно использовал. Отдельно назови, что потребуется проверить на стенде.",
+        "Отвечай по схеме: требования → инварианты → граница транзакции → конкуренция и сбои → наблюдаемость. Остаток общего времени используй на уточнения техлида.",
+        "System design — следующий этап. В этой сессии не трать время на C4/UML и проектирование всей платформы; защищай конкретные решения по SQL, данным, транзакциям и обработке событий.",
+        "Уточняющие вопросы по БД: MVCC и write skew; deadlock и порядок блокировок; read-after-write при чтении реплики; VACUUM и длинные транзакции; selectivity, составные/частичные индексы, keyset и оконные функции. Обсуждай по мере времени, начиная с плана реального запроса.",
+        "High-load в .NET: bounded concurrency и backpressure, async без блокировки потоков, pool соединений, короткий lifetime DbContext. Redis — кэш с понятной инвалидацией и защитой от stampede; корректность денежных операций обеспечивается в БД. Какие метрики докажут, где bottleneck?",
+        "Готовь объяснение проверки каждого изменения: граничные и конкурентные случаи, интеграционные тесты на реальном provider, fault injection и метрики после rollout. На интервью объясняем план, не запускаем тесты и не решаем алгоритмы вживую."
+      ],
+      "en": [
+        "Before starting, rehearse a 90-second introduction: your role, system architecture, personal ownership and relevance to this vacancy.",
+        "Defend two resume examples: SQL 970 → 310 ms and throughput +37.3%. Cover workload, diagnosis, exact change, measurement and trade-offs. Label forgotten figures as unknown rather than inventing them.",
+        "For payment failures 1.02% → 0.69%, explain the metric definition, time window, source, retries and idempotency. Describe known RPS, p95/p99, data volume, peaks and bottlenecks; DAU alone does not describe load.",
+        "Be honest about Debezium: no production experience. Relate CDC to outbox and delivery mechanisms you actually used; state what you would verify in a lab.",
+        "Structure answers as requirements → invariants → transaction boundary → concurrency and failures → observability. Use the remaining time for tech lead follow-ups.",
+        "System design is the next stage. Do not spend this round on C4/UML or designing the whole platform; defend concrete SQL, data, transaction and event-processing decisions.",
+        "Database follow-ups: MVCC and write skew; deadlocks and lock order; replica read-after-write; VACUUM and long transactions; selectivity, composite/partial indexes, keyset pagination and window functions. Prioritize based on time, starting with a real query plan.",
+        "High-load .NET: bounded concurrency/backpressure, nonblocking async, connection pools and short DbContext lifetimes. Redis needs clear invalidation and stampede protection; monetary correctness belongs in the database. Which metrics identify the bottleneck?",
+        "Explain verification: boundary and concurrency cases, integration tests against the actual provider, fault injection and post-rollout metrics. Discuss the plan; no test execution or live algorithm coding during this interview."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Представь техническое интервью в продуктовую команду iGaming. Следующим этапом будет system design; здесь не проектируем платформу с нуля и не рисуем C4/UML. Компания развивает платформу игровых механик: администраторы настраивают кампании и награды, игроки получают бонусы, а команда анализирует результаты. AI помогает предлагать правила и ускорять разработку. Это учебная модель продукта, а не сведения о внутренней системе работодателя.",
+        "discussion": [
+          "Техлид начинает с твоего опыта: просит выбрать знакомый сервис, нарисовать путь запроса и объяснить личный вклад. Затем связывает твои примеры оптимизации SQL и платежей с задачами платформы.",
+          "Главный блок — БД: техлид просит разобрать план медленного запроса, выбрать индекс, найти размножение строк в отчёте и защитить транзакцию перевода. Здесь важны PostgreSQL/MS SQL, EF Core/LINQ, измерения и поведение под конкурентной нагрузкой.",
+          "Основной кейс: во время популярной кампании приходят параллельные запросы на списание и начисление. Часть клиентов повторяет запрос после timeout. Нужно сохранить баланс и историю операций, а затем надёжно доставить изменения в аналитику.",
+          "По ходу разговора появляются осложнения: consumer перезапустился, событие пришло повторно, Debezium отстал, административное действие предложено AI. Техлид просит объяснять решения через инварианты и реальные точки отказа."
+        ],
+        "agenda": [
+          "5 мин — опыт: SQL 970 → 310 мс, high-load и личный вклад.",
+          "28 мин — SQL, планы, индексы, JOIN, изоляция и EF Core.",
+          "12 мин — баланс игрока, конкурентность, ledger и идемпотентность.",
+          "8 мин — Kafka, outbox, Debezium и аналоги CDC.",
+          "3 мин — AI-кодинг, skills и MCP.",
+          "4 мин — вопросы кандидата и обратная связь."
+        ],
+        "scope": "technical-databases"
+      },
+      "en": {
+        "premise": "Imagine a technical interview with an iGaming product team. System design is a separate next stage; do not design the entire platform or ask for C4/UML here. Its platform supports configurable game campaigns and rewards, player bonuses and analytics. AI proposes rules and accelerates development. This is a fictional practice product, not a claim about the employer’s internal systems.",
+        "discussion": [
+          "The tech lead starts with your experience: pick a familiar service, trace a request and explain your contribution. Connect SQL tuning and payment examples to platform needs.",
+          "The main section is databases: read a slow query plan, choose an index, diagnose multiplied report rows and defend a transfer transaction. Focus on PostgreSQL/MS SQL, EF Core/LINQ, measurements and concurrent load.",
+          "Core case: a popular campaign causes concurrent debits and rewards. Clients retry after timeouts. Preserve wallet correctness and the operation history, then reliably deliver changes to analytics.",
+          "Follow-ups introduce consumer restarts, duplicate events, Debezium lag and an AI-proposed administrative action. Defend decisions using invariants and concrete failure points."
+        ],
+        "agenda": [
+          "5 min — experience: SQL 970 → 310 ms, high load and ownership.",
+          "28 min — SQL, plans, indexes, joins, isolation and EF Core.",
+          "12 min — wallets, concurrency, ledger and idempotency.",
+          "8 min — Kafka, outbox, Debezium and CDC alternatives.",
+          "3 min — AI coding, skills and MCP.",
+          "4 min — candidate questions and feedback."
+        ],
+        "scope": "technical-databases"
+      }
+    },
+    "task_minutes": {
+      "T09": 6,
+      "A57": 5,
+      "A56": 6,
+      "A71": 7
+    },
+    "oral": true
+  },
+  {
+    "id": "database-deep-dive",
+    "title": {
+      "ru": "БД · SQL, планы, транзакции и EF Core",
+      "en": "Databases · SQL, plans, transactions and EF Core"
+    },
+    "description": {
+      "ru": "Главный приоритет вакансии: объяснить индекс и план запроса, безопасный перевод средств и реальные границы атомарности EF Core. Письменное ревью вместо запуска кода.",
+      "en": "The vacancy's main priority: explain indexes and query plans, safe transfers and EF Core atomicity boundaries. Written review rather than running code."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "Q017",
+      "Q018",
+      "Q019",
+      "Q021",
+      "Q022",
+      "Q024",
+      "T09",
+      "A57",
+      "Q023",
+      "Q153",
+      "Q154",
+      "Q155",
+      "Q156",
+      "Q157",
+      "Q158",
+      "A56",
+      "Q027",
+      "Q028",
+      "Q054"
+    ],
+    "guide": {
+      "ru": [
+        "Проговори MVCC и различия PostgreSQL READ COMMITTED, REPEATABLE READ и SERIALIZABLE: snapshot, write skew, serialization failure и повтор всей транзакции. Не переноси поведение изоляции одной СУБД на другую автоматически.",
+        "На плане запроса найди estimated/actual rows, loops, scan/join, sort и buffers. Объясни, почему Seq Scan может быть правильным выбором и почему EXPLAIN ANALYZE действительно выполняет запрос.",
+        "Подбери индекс для WHERE tenant_id = ? ORDER BY created_at DESC, id DESC и объясни keyset pagination, селективность, цену записи и отличие INCLUDE от ключевых колонок.",
+        "На бумаге разыграй два конкурентных списания с одного кошелька, deadlock при встречных переводах и потерю ответа после commit. Сформулируй ограничения БД и порядок блокировок.",
+        "Повтори N+1, проекцию DTO, tracking, split query и pool соединений. Подготовь реальный рассказ об устранении N+1 из резюме: как обнаружил и почему выбранное исправление помогло."
+      ],
+      "en": [
+        "Explain MVCC and PostgreSQL READ COMMITTED, REPEATABLE READ and SERIALIZABLE: snapshots, write skew, serialization failures and whole-transaction retries. Do not assume different databases implement isolation identically.",
+        "Read estimated/actual rows, loops, scans/joins, sorts and buffers in a query plan. Explain when Seq Scan is appropriate and that EXPLAIN ANALYZE executes the statement.",
+        "Choose an index for WHERE tenant_id = ? ORDER BY created_at DESC, id DESC; discuss keyset pagination, selectivity, write costs and INCLUDE versus key columns.",
+        "Trace two concurrent wallet debits, a deadlock between opposite transfers and a lost response after commit. State database constraints and lock ordering.",
+        "Review N+1, DTO projection, tracking, split queries and connection pools. Prepare your actual resume example of diagnosing and fixing N+1."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "После запуска бонусной кампании история операций игрока стала открываться медленнее, а отчёт по начислениям расходится с детализацией. Техлид предлагает разобрать проблему как рабочую задачу: сначала выяснить, что именно тормозит или считается неверно, затем защитить минимальные изменения схемы и кода.",
+        "discussion": [
+          "Начни с вопросов о размере таблиц, распределении данных по tenant, запросах, индексах, нагрузке и p95/p99. Не выбирай лечение до диагностики. Привяжи обсуждение к собственному кейсу оптимизации SQL.",
+          "Разбери фильтры и JOIN, NULL, план выполнения и пагинацию истории. Объясни, какие наблюдения подтвердят пользу индекса и как изменится стоимость записи.",
+          "После чтения переходите к записи: сервис переводит средства, использует EF Core и публикует событие. Техлид проверяет границы транзакции, поведение конкурентных запросов и неизвестный исход commit."
+        ],
+        "agenda": [
+          "5 мин — свой кейс оптимизации SQL и диагностика.",
+          "25 мин — планы, индексы, JOIN, агрегаты и пагинация.",
+          "20 мин — MVCC, изоляция, транзакции, блокировки и EF Core.",
+          "5 мин — high-load, pool, реплики и безопасные миграции.",
+          "5 мин — вопросы и разбор пробелов."
+        ]
+      },
+      "en": {
+        "premise": "After a bonus campaign launches, player operation history becomes slower and the reward report disagrees with its details. The tech lead treats this as a real engineering task: diagnose the latency and incorrect results, then defend minimal schema and code changes.",
+        "discussion": [
+          "Ask about table sizes, tenant skew, queries, indexes, load and p95/p99 before choosing a fix. Connect this to your own SQL optimization example.",
+          "Discuss filters, joins, NULL, query plans and history pagination. Explain how to validate an index and its write cost.",
+          "Move from reads to writes: an EF Core service transfers funds and emits an event. Defend transaction boundaries, concurrent behavior and an uncertain commit outcome."
+        ],
+        "agenda": [
+          "5 min — personal SQL optimization and diagnosis.",
+          "25 min — plans, indexes, joins, aggregates and pagination.",
+          "20 min — MVCC, isolation, transactions, locks and EF Core.",
+          "5 min — high load, pools, replicas and safe migrations.",
+          "5 min — questions and debrief."
+        ]
+      }
+    },
+    "task_minutes": {
+      "T09": 6,
+      "A57": 6,
+      "A56": 7
+    },
+    "oral": true
+  },
+  {
+    "id": "kafka-cdc-recovery",
+    "title": {
+      "ru": "Kafka и Debezium · доставка и восстановление",
+      "en": "Kafka and Debezium · delivery and recovery"
+    },
+    "description": {
+      "ru": "Закрыть пробел CDC через знакомые механизмы: outbox, inbox, offset и повторы. Разбор consumer и CDC-проекции без развёртывания инфраструктуры.",
+      "en": "Bridge the CDC gap through familiar concepts: outbox, inbox, offsets and retries. Review a consumer and CDC projection without deploying infrastructure."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "Q173",
+      "Q174",
+      "Q175",
+      "Q176",
+      "Q177",
+      "Q178",
+      "A69",
+      "Q179",
+      "Q180",
+      "Q181",
+      "Q182",
+      "Q183",
+      "A70"
+    ],
+    "guide": {
+      "ru": [
+        "Нарисуй поток: транзакция бизнес-данных и outbox → WAL/logical decoding → Debezium → Kafka → consumer → inbox и эффект в одной транзакции БД → commit offset.",
+        "Сравни log-based CDC, polling outbox, SQL Server CDC и триггеры: какие изменения видны, как хранится позиция, что происходит с удалениями и где появляется нагрузка. CDC не равен Event Sourcing.",
+        "Объясни snapshot, LSN, replication slot, publication и pgoutput своими словами. Разбери остановку коннектора: lag, удержание WAL, рост диска, retention и восстановление при утрате нужного лога.",
+        "Пройди точки сбоя до и после DB commit и offset commit. Покажи, где возникает дубль, почему Kafka exactly-once не делает внешний SQL-эффект атомарным и почему ключ игрока не даёт глобального порядка.",
+        "Будь готов обсудить rebalance, max.poll.interval, poison event, DLQ и replay. Повторная обработка должна сохранять бизнес-порядок там, где от него зависит баланс."
+      ],
+      "en": [
+        "Draw business data and outbox in one transaction → WAL/logical decoding → Debezium → Kafka → consumer → inbox and effect in one database transaction → offset commit.",
+        "Compare log-based CDC, polling outbox, SQL Server CDC and triggers: captured changes, checkpoints, deletes and load. CDC is not Event Sourcing.",
+        "Explain snapshots, LSNs, replication slots, publications and pgoutput. Trace a connector outage: lag, retained WAL, disk growth, retention and recovery when required logs are lost.",
+        "Trace failures before and after database and offset commits. Identify duplicates, explain the boundary of Kafka exactly-once for external SQL and why a player key does not give global ordering.",
+        "Discuss rebalances, max.poll.interval, poison events, DLQ and replay. Preserve business ordering wherever wallet correctness depends on it."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "В кошельке операция уже завершена, но аналитика и прогресс игровой миссии обновляются с задержкой. После рестарта worker часть наград начислилась повторно. Команда хочет использовать Debezium для доставки изменений из PostgreSQL. Техлид просит сравнить это с привычной тебе обработкой сообщений и предложить надёжный путь миграции.",
+        "discussion": [
+          "Честно обозначь границу опыта с Debezium. Начни с знакомых тебе гарантий БД и брокера, затем объясни, что добавляет чтение журнала изменений.",
+          "Построй путь от бизнес-транзакции до consumer и его проекции. Отдельно разберите начальную загрузку, удаление игрока, повторную доставку, порядок и момент сохранения offset.",
+          "В середине обсуждения коннектор останавливается, а WAL занимает всё больше диска. Предложи диагностику, безопасное восстановление и действия при утрате необходимой позиции, сохранив возможность сверки."
+        ],
+        "agenda": [
+          "5 мин — реальный опыт с брокерами и границы знаний CDC.",
+          "15 мин — CDC, WAL, snapshot и сравнение с outbox.",
+          "20 мин — consumer, повторы, offset и порядок.",
+          "15 мин — lag, replay и восстановление после сбоя.",
+          "5 мин — вопросы и обратная связь."
+        ]
+      },
+      "en": {
+        "premise": "A wallet operation has committed, but analytics and mission progress lag behind. Some rewards were applied twice after a worker restart. The team is considering Debezium for PostgreSQL change delivery. Compare it to messaging approaches you know and propose a reliable migration path.",
+        "discussion": [
+          "State your Debezium experience honestly. Start from familiar database and broker guarantees, then explain what transaction-log capture adds.",
+          "Trace the business transaction through the consumer and projection. Discuss initial loading, player deletion, redelivery, ordering and offset persistence.",
+          "The connector stops and retained WAL grows. Propose diagnosis, safe recovery and a recovery strategy if the required position is lost, including reconciliation."
+        ],
+        "agenda": [
+          "5 min — actual messaging experience and CDC knowledge boundaries.",
+          "15 min — CDC, WAL, snapshots and outbox alternatives.",
+          "20 min — consumers, duplicates, offsets and ordering.",
+          "15 min — lag, replay and failure recovery.",
+          "5 min — questions and feedback."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A69": 9,
+      "A70": 9
+    },
+    "oral": true
+  },
+  {
+    "id": "ai-skills-mcp",
+    "title": {
+      "ru": "AI, skills и MCP · защита инженерного решения",
+      "en": "AI, skills and MCP · defend an engineering solution"
+    },
+    "description": {
+      "ru": "Спецификация наград, рабочий процесс AI-разработки и ревью административного API. Отрепетируй устное объяснение без обязательной генерации и запуска приложения.",
+      "en": "Reward specifications, AI development workflows and admin API review. Rehearse the explanation without requiring application generation or execution."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "Q048",
+      "Q049",
+      "Q188",
+      "A75",
+      "T18",
+      "Q189",
+      "A74"
+    ],
+    "guide": {
+      "ru": [
+        "Для устной тренировки T18 опиши маленькую доработку, план генерации и независимой проверки; фактически запускать сборку не обязательно. Не выдавай план или личный эксперимент за production-кейс.",
+        "Раздели skill как переиспользуемые инструкции и ресурсы, агента как исполнителя и MCP как протокол подключения контекста и инструментов. MCP сам по себе не является AI-моделью или механизмом авторизации.",
+        "Набросай skill для ревью миграций: когда применять, какие входы нужны, шаги проверки, формат результата и ограничения. Объясни, как версионируешь его и оцениваешь пользу на примерах.",
+        "Спроектируй MCP tool для чтения схемы БД: входная JSON-схема, tenant scope, серверная авторизация, минимальные права, timeout, лимиты результата, аудит и защита секретов. Содержимое tool output не получает полномочия командовать агентом.",
+        "Объясни путь AI-предложения игровой механики до применения: валидируемая схема и версия правил, проверка прав, бизнес-инварианты и аудит. Изменение денежных балансов проходит через контролируемый API."
+      ],
+      "en": [
+        "For verbal practice of T18, describe a small change, generation plan and independent verification; an actual build is optional. Distinguish proposed work and personal experiments from production experience.",
+        "Distinguish a skill's reusable instructions/resources, an agent executing work and MCP connecting tools/context. MCP is not an AI model or an authorization mechanism.",
+        "Outline a migration review skill: triggers, required inputs, review steps, output format and boundaries. Explain versioning and evaluation using examples.",
+        "Design a database schema inspection MCP tool: input JSON schema, tenant scope, server-side authorization, least privilege, timeouts, output limits, auditing and secret handling. Tool output is data rather than authority over the agent.",
+        "Explain how an AI-proposed game mechanic becomes active: validated schema and rule version, access checks, business invariants and audit. Monetary balances change through a controlled API."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Продуктовая команда хочет быстрее запускать ежедневные награды: AI предлагает правила кампаний и помогает писать административный интерфейс. В существующей системе уже есть игроки, tenants и денежные балансы. Техлид просит показать, как ты встроишь AI в процесс разработки и продукт, сохранив проверяемые правила и контроль доступа.",
+        "discussion": [
+          "Сначала уточни смысл «раз в день», часовой пояс, версию правил и различие бонусных и денежных единиц. Сформулируй контракт, который можно проверить независимо от генератора.",
+          "Затем обсудите твой workflow: спецификация, skill для повторяемого ревью, MCP-инструмент для чтения схемы, небольшая генерация и проверка diff. Разделяй использованные инструменты и то, что ты действительно разработал сам.",
+          "В завершение техлид показывает AI-generated admin API: проверь tenant isolation, полномочия, аудит, повторные запросы и возможность небезопасно изменить баланс. Объясни пределы самостоятельности агента."
+        ],
+        "agenda": [
+          "5 мин — личный опыт с AI-инструментами.",
+          "15 мин — требования награды, спецификация и инварианты БД.",
+          "15 мин — workflow генерации, skill и MCP.",
+          "15 мин — admin API, tenant isolation и аудит.",
+          "10 мин — проверка решений, вопросы и обратная связь."
+        ]
+      },
+      "en": {
+        "premise": "The product team wants to launch daily rewards faster: AI proposes campaign rules and helps build the admin interface. The existing system has players, tenants and monetary balances. Explain how you would integrate AI into engineering and the product while preserving verifiable rules and access controls.",
+        "discussion": [
+          "Clarify the meaning of once per day, time zones, rule versions and bonus versus monetary units. Define a contract independently verifiable from the generator.",
+          "Explain your workflow: specification, reusable review skill, schema-reading MCP tool, small generation steps and diff verification. Distinguish tools you used from integrations you actually built.",
+          "Review an AI-generated admin API for tenant isolation, permissions, audit, retries and unsafe balance changes. Explain agent autonomy boundaries."
+        ],
+        "agenda": [
+          "5 min — personal AI tool experience.",
+          "15 min — reward requirements, specification and database invariants.",
+          "15 min — generation workflow, skills and MCP.",
+          "15 min — admin APIs, tenant isolation and audit.",
+          "10 min — verification, questions and feedback."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A75": 12,
+      "T18": 12,
+      "A74": 12
+    },
+    "oral": true
+  },
+  {
+    "id": "igaming-express",
+    "title": {
+      "ru": "Экспресс · перед интервью за 40 минут",
+      "en": "Express · 40 minutes before the interview"
+    },
+    "description": {
+      "ru": "Короткий тест на самые опасные заблуждения: индекс, транзакция, неизвестный исход commit, CDC, порядок Kafka, баланс и AI. Только теория с готовым разбором после ответа.",
+      "en": "A short check for costly misconceptions: indexes, transactions, uncertain commits, CDC, Kafka ordering, balances and AI. Theory only, with explanations after submission."
+    },
+    "minutes": 40,
+    "task_ids": [
+      "Q022",
+      "Q023",
+      "Q158",
+      "Q173",
+      "Q174",
+      "Q177",
+      "Q179",
+      "Q180",
+      "Q181",
+      "Q186",
+      "Q187",
+      "Q188",
+      "Q049"
+    ],
+    "guide": {
+      "ru": [
+        "Сначала ответь без подсказок. После каждого ответа объясни вслух, почему остальные варианты неверны, и приведи один production-сценарий отказа.",
+        "Отметь темы, где выбрал правильный вариант, но не можешь защитить объяснение. Это отдельные пробелы для обсуждения с ассистентом.",
+        "За оставшееся время повтори самопрезентацию и два собственных технических кейса. Подготовь вопросы техлиду: где источник истины баланса, реальные пики нагрузки, назначение CDC и границы полномочий AI."
+      ],
+      "en": [
+        "Answer without hints, then explain aloud why the other options are wrong and provide one production failure scenario.",
+        "Mark answers you selected correctly but cannot defend. These remain gaps to discuss with the assistant.",
+        "Use the remaining time for your introduction and two real technical examples. Ask the tech lead about the wallet source of truth, actual peak load, CDC use cases and AI permissions."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "До интервью осталось мало времени. Представь короткий прогон с техлидом: он берёт одну платформу наград и быстро меняет условия — конкурентное списание, повтор после timeout, задержка CDC и AI-предложение. Твоя задача — удержать общую картину и объяснять решения, а не только вспоминать определения.",
+        "discussion": [
+          "На каждый теоретический вопрос дай короткий ответ, затем один пример отказа и способ защиты. Если не знаешь механизм, назови границу знаний и то, как проверил бы гипотезу.",
+          "В конце свяжи темы в одну цепочку: запрос → транзакция кошелька → outbox → Kafka/CDC → идемпотентный consumer. Подготовь два вопроса о реальной архитектуре команды."
+        ],
+        "agenda": [
+          "5 мин — самопрезентация.",
+          "25 мин — короткие технические вопросы с уточнениями.",
+          "5 мин — связный разбор пути операции.",
+          "5 мин — вопросы техлиду и список пробелов."
+        ]
+      },
+      "en": {
+        "premise": "Time is short. Rehearse a quick tech lead discussion of one reward platform with changing conditions: concurrent debits, retries after timeouts, CDC lag and an AI proposal. Maintain the big picture and explain decisions rather than reciting definitions.",
+        "discussion": [
+          "For each theory question, give a short answer, one failure example and a safeguard. If a mechanism is unfamiliar, state the gap and how you would verify your hypothesis.",
+          "Connect the topics: request → wallet transaction → outbox → Kafka/CDC → idempotent consumer. Prepare two questions about the team’s actual architecture."
+        ],
+        "agenda": [
+          "5 min — introduction.",
+          "25 min — short technical questions and follow-ups.",
+          "5 min — trace one complete operation.",
+          "5 min — tech lead questions and remaining gaps."
+        ]
+      }
+    },
+    "task_minutes": {},
+    "oral": true
+  }
+]

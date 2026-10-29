@@ -123,7 +123,9 @@ class MockStore:
         db.executescript('''CREATE TABLE IF NOT EXISTS mock_profiles(id TEXT PRIMARY KEY,name TEXT NOT NULL,data TEXT NOT NULL,updated REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS mock_sessions(id TEXT PRIMARY KEY,profile_id TEXT NOT NULL,stage TEXT NOT NULL,started REAL NOT NULL,deadline REAL NOT NULL,finished REAL,state TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS code_reviews(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,created REAL NOT NULL,state TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS ai_translations(id TEXT PRIMARY KEY,state TEXT NOT NULL);''')
+        CREATE TABLE IF NOT EXISTS ai_translations(id TEXT PRIMARY KEY,state TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS interview_attempts(attempt_id TEXT PRIMARY KEY,session_id TEXT NOT NULL,code TEXT NOT NULL DEFAULT '',test_code TEXT,result TEXT,updated REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS interview_artifacts(id TEXT PRIMARY KEY,session_id TEXT NOT NULL,task_id TEXT NOT NULL,code TEXT NOT NULL,created REAL NOT NULL);''')
         # Restore setup time only for empty, unpaired legacy ChatGPT rounds.
         for row in db.execute('SELECT * FROM mock_sessions WHERE finished IS NULL').fetchall():
             state=json.loads(row['state'])
@@ -173,8 +175,8 @@ class MockStore:
         t=self.task(id,state['language'])
         bank.append({k:t.get(k) for k in ['id','title','engine','cat','tags','desc','requirements','cases','minutes']})
     return {k:v for k,v in session.items() if k!='state'}|{'company':state.get('company'),'interviewer':self.interviewer(session),'language':state['language'],'strict_language':state['config'].get('strict_language',False),'mode':state['mode'],'tags':state['tags'],
-        'messages':state['messages'],'summary':({**state['summary'],'stats':self.stats(session)} if state.get('summary') else None),'summary_translation':state.get('summary_translation'),'hints':state['hints'],'attachments':state['attachments'],
-        'companion':{k:state.get('companion',{}).get(k) for k in ['last_sync','url','finished_from_tab','transcript_complete','deadline_reached']},'companion_queued':sum(not x.get('delivered') for x in state.get('companion',{}).get('contexts',[])),'constructed_plan':state.get('constructor_plan'),'bank':bank,'pending':bool(state.get('pending')),'stats':self.stats(session),'context_name':state['profile']['name'],'phase':self.phase(session),'created':session['started'],'started':self.began_at(session),'deadline':session['deadline'] if self.began_at(session) is not None else None,'duration_seconds':self.duration(session)}
+        'coaching':{'enabled':state.get('coaching_enabled',True),'requested_at':state.get('coaching',{}).get('requested_at'),'pending':bool(state.get('coaching',{}).get('pending')),'delivery':state.get('coaching',{}).get('delivery')},'solution_manifest':self.solution_manifest(session),'coaching_history':state.get('coaching_history',[]),'messages':state['messages'],'summary':({**state['summary'],'stats':self.stats(session)} if state.get('summary') else None),'summary_translation':state.get('summary_translation'),'hints':state['hints'],'attachments':state['attachments'],
+        'companion':{k:state.get('companion',{}).get(k) for k in ['last_sync','url','finished_from_tab','transcript_complete','deadline_reached']}|{'can_recover':bool(session['finished'] and state.get('companion',{}).get('url'))},'companion_queued':sum(not x.get('delivered') for x in state.get('companion',{}).get('contexts',[])),'constructed_plan':state.get('constructor_plan'),'bank':bank,'pending':bool(state.get('pending')),'stats':self.stats(session),'context_name':state['profile']['name'],'phase':self.phase(session),'created':session['started'],'started':self.began_at(session),'deadline':session['deadline'] if self.began_at(session) is not None else None,'duration_seconds':self.duration(session)}
  def stats(self,session):
     st=session['state']
     turns=[(i,m) for i,m in enumerate(st['messages']) if m['role']=='candidate' and not m.get('preparation')]
@@ -192,12 +194,59 @@ class MockStore:
             'setup_turns':None if unknown else sum(k=='setup' for k in classified.values()),'closing_turns':None if unknown else sum(k=='closing' for k in classified.values()),
             'other_turns':None if unknown else sum(k=='other' for k in classified.values()),'classification_source':'codex_or_external_ai' if classified else 'manual_tags_only',
             'elapsed':round((session['finished'] or time.time())-self.began_at(session)) if self.began_at(session) is not None else 0,
-            'practice_attempts':len(st['attachments']),'external_transcript':any(m.get('companion_id') or m.get('external_import') for m in st['messages'])}
+            'practice_attempts':len({e['attempt_id'] for e in self.practice_snapshot(session) if e.get('attempt_id')}),'external_transcript':any(m.get('companion_id') or m.get('external_import') for m in st['messages'])}
+ def link_attempt(self,session_id,attempt):
+    if not session_id:return
+    with self.lock:
+        session=self.session(session_id);st=session['state']
+        if session['finished'] or self.began_at(session) is None or attempt['task_id'] not in st['bank_ids']:raise ValueError('Start a running interview containing this task before linking an attempt')
+        if attempt['started']<self.began_at(session):raise ValueError('This attempt predates the interview. Submit it first, then start a new attempt for this round.')
+        with self.connect() as db:
+            old=db.execute('SELECT session_id FROM interview_attempts WHERE attempt_id=?',(attempt['id'],)).fetchone()
+            if old and old['session_id']!=session_id:raise ValueError('Attempt already belongs to another interview')
+            db.execute('INSERT OR IGNORE INTO interview_attempts(attempt_id,session_id,updated) VALUES(?,?,?)',(attempt['id'],session_id,time.time()))
+ def record_attempt(self,attempt_id,code,result=None):
+    if not attempt_id:return
+    with self.lock:
+        with self.connect() as db:row=db.execute('SELECT session_id FROM interview_attempts WHERE attempt_id=?',(attempt_id,)).fetchone()
+        if not row:return
+        session=self.session(row['session_id'])
+        if session['finished']:return  # The round snapshot is immutable after finish/deadline.
+        with self.connect() as db:
+            if result is None:db.execute('UPDATE interview_attempts SET code=?,updated=? WHERE attempt_id=?',(code,time.time(),attempt_id))
+            elif result.get('status')=='checking':db.execute('UPDATE interview_attempts SET code=?,test_code=?,result=?,updated=? WHERE attempt_id=?',(code,code,json.dumps(result,ensure_ascii=False),time.time(),attempt_id))
+            else:db.execute('UPDATE interview_attempts SET test_code=?,result=?,updated=? WHERE attempt_id=?',(code,json.dumps(result,ensure_ascii=False),time.time(),attempt_id))
+ def practice_snapshot(self,session):
+    st=session['state']
+    if 'practice_snapshot' in st:return st['practice_snapshot']
+    evidence=[];seen=set()
+    with self.connect() as db:
+        rows=db.execute('SELECT a.*,i.code AS live_code,i.test_code,i.result AS preview_result FROM interview_attempts i JOIN attempts a ON a.id=i.attempt_id WHERE i.session_id=? ORDER BY a.started,a.id',(session['id'],)).fetchall()
+        for row in rows:
+            a=dict(row);seen.add(a['id']);submitted=bool(a['finished'] and a['finished']<=(session['finished'] or time.time()))
+            code=a['code'] if submitted else a['live_code'];result=json.loads(a['result']) if submitted and a['result'] else json.loads(a['preview_result']) if a['preview_result'] and a['test_code']==code else None
+            evidence.append({'id':'attempt:'+a['id'],'attempt_id':a['id'],'task_id':a['task_id'],'kind':'submitted' if submitted else 'draft','code':code,'result':result,'revealed':bool(a['revealed'])})
+        for aid in st['attachments']:
+            if aid in seen:continue
+            row=db.execute('SELECT * FROM attempts WHERE id=?',(aid,)).fetchone()
+            if row:evidence.append({'id':'attempt:'+aid,'attempt_id':aid,'task_id':row['task_id'],'kind':'manually_attached','code':row['code'],'result':json.loads(row['result']) if row['result'] else None,'revealed':bool(row['revealed'])})
+        artifacts=db.execute('SELECT * FROM interview_artifacts WHERE session_id=? ORDER BY created,id',(session['id'],)).fetchall()
+        for row in artifacts:evidence.append({'id':'shared:'+row['id'],'task_id':row['task_id'],'kind':'shared_version','code':row['code'],'result':None,'shared_at':row['created']})
+    # Legacy rounds retain their available manually shared versions.
+    if not artifacts:
+        for index,a in enumerate(st.get('shared_artifacts',[])):
+            evidence.append({'id':'legacy-shared:'+str(index),'task_id':a['task_id'],'kind':'shared_version','code':a['code'],'result':None})
+    evidence=[e for e in evidence if self.task(e['task_id'],st['language'])['engine']!='quiz']
+    if session['finished']:st['practice_snapshot']=evidence
+    return evidence
+ def solution_manifest(self,session):
+    reviews=session['state'].get('solution_reviews',{})
+    return [{**{k:v for k,v in e.items() if k!='code'},'code_length':len(e['code']),'review':reviews.get(e['id'],{}).get('result')} for e in self.practice_snapshot(session)]
  def context(self,session,action):
     st=session['state'];bank=[]
     for id in st['bank_ids']:
         t=self.task(id,st['language'])
-        bank.append({k:t.get(k) for k in ['id','title','engine','desc','requirements','cases','review','answer','choices','source','interview_flow']})
+        bank.append({k:t.get(k) for k in ['id','title','engine','desc','requirements','cases','review','answer','choices','source','interview_flow','review_code','review_language','source_provenance']}|{'discussion_minutes':(st.get('constructor_plan') or {}).get('task_minutes',{}).get(id,t['minutes'])})
     attachments=[]
     with self.connect() as db:
         for id in st['attachments']:
@@ -208,15 +257,17 @@ class MockStore:
     return {'company':st.get('company'),'interviewer':self.interviewer(session),'language':st['language'],'stage':session['stage'],'format':FORMATS[session['stage']],
             'action':action,'candidate_profile':st['profile'],'interview_config':st['config'],
             'constructed_plan':st.get('constructor_plan'),'phase':self.phase(session),'duration_seconds':self.duration(session),'remaining_seconds':self.remaining(session),
-            'transcript':st['messages'],'bank':bank,'practice_evidence':attachments,'shared_artifacts':st.get('shared_artifacts',[]),
+            'transcript_complete':st.get('companion',{}).get('transcript_complete',True),'transcript_limitations':'If transcript_complete is false, this is a PARTIAL debrief of saved turns only. State this prominently in overview and limitations. Never infer missing answers or assess full-round coverage.','transcript':st['messages'],'bank':bank,'practice_evidence':self.solution_manifest(session) if action=='finish' else attachments,'shared_artifacts':[] if action=='finish' else st.get('shared_artifacts',[]),
             'timing':{'server_time':time.time(),'deadline':session['deadline'] if self.began_at(session) is not None else None,'remaining_seconds':self.remaining(session),'duration_seconds':self.duration(session)},
-            'stats':self.stats(session),'previous_round_summary':st.get('previous_summary')}
+            'director_advice':(st.get('coaching') or {}).get('result'),'stats':self.stats(session),'previous_round_summary':st.get('previous_summary')}
  def request(self,session,action):
     mode='summary' if action=='finish' else 'turn'
     nonce=uuid.uuid4().hex
     session['state']['pending']={'id':nonce,'mode':mode,'action':action}
+    if mode=='summary' and all(e.get('review') for e in self.solution_manifest(session)):session['state']['pending']['context']=self.context(session,action)
     return {'request_id':nonce,'mode':mode,'context':self.context(session,action),'schema':SCHEMAS[mode]}
  def simple_summary(self,session):
+    if session['finished']:self.practice_snapshot(session)
     en=session['state']['language']=='en';stats=self.stats(session)
     return {'overview':'Session saved. An evidence-based AI debrief is not available yet.' if en else 'Сессия сохранена. Содержательный AI-разбор пока не получен.',
             'strengths':[],'gaps':[],'comments':[('Candidate turns: ' if en else 'Реплик кандидата: ')+str(stats['candidate_turns']),('Unclassified turns: ' if en else 'Неклассифицированных реплик: ')+str(stats['unclassified_turns'])],
@@ -272,7 +323,9 @@ class MockStore:
                 sessions=[dict(r) for r in db.execute('SELECT * FROM mock_sessions')]
                 reviews=[dict(r) for r in db.execute('SELECT * FROM code_reviews')]
                 translations=[dict(r) for r in db.execute('SELECT * FROM ai_translations')]
-            return {'format':'forge-mock-backup-v1','profiles':profiles,'sessions':sessions,'reviews':reviews,'translations':translations}
+                linked_attempts=[dict(r) for r in db.execute('SELECT * FROM interview_attempts')]
+                shared_versions=[dict(r) for r in db.execute('SELECT * FROM interview_artifacts')]
+            return {'format':'forge-mock-backup-v1','profiles':profiles,'sessions':sessions,'reviews':reviews,'translations':translations,'linked_attempts':linked_attempts,'shared_versions':shared_versions}
         raise ValueError('Unknown interview endpoint')
     if endpoint.startswith('translation/'):return self.translation(endpoint,p)
     if endpoint=='resume-text': return {'text':extract_resume(limited(p.get('filename',''),200),limited(p.get('base64',''),2_800_000))}
@@ -286,11 +339,16 @@ class MockStore:
         return {'id':id}
     if endpoint=='delete-profile':
         with self.connect() as db:
+            db.execute('DELETE FROM interview_attempts WHERE session_id IN (SELECT id FROM mock_sessions WHERE profile_id=?)',(p.get('id'),))
+            db.execute('DELETE FROM interview_artifacts WHERE session_id IN (SELECT id FROM mock_sessions WHERE profile_id=?)',(p.get('id'),))
             db.execute('DELETE FROM mock_sessions WHERE profile_id=?',(p.get('id'),))
             db.execute('DELETE FROM mock_profiles WHERE id=?',(p.get('id'),))
         return {'ok':True}
     if endpoint=='delete-session':
-        with self.connect() as db: db.execute('DELETE FROM mock_sessions WHERE id=?',(p.get('id'),))
+        with self.connect() as db:
+            db.execute('DELETE FROM interview_attempts WHERE session_id=?',(p.get('id'),))
+            db.execute('DELETE FROM interview_artifacts WHERE session_id=?',(p.get('id'),))
+            db.execute('DELETE FROM mock_sessions WHERE id=?',(p.get('id'),))
         return {'ok':True}
     if endpoint=='start':
         language=p.get('language',language)
@@ -322,7 +380,7 @@ class MockStore:
             constructed=json.loads(planrow['state'])
             duration=constructed['minutes'];tags=constructed['tags']
         state={'version':0,'interviewer':interviewer_persona(id,stage,language,gender),'began_at':None,'duration_seconds':duration*60,'language':language,'mode':mode,'tags':tags,'config':config,'profile':{'name':profile['name'],**json.loads(profile['data'])},
-               'messages':[],'attachments':[],'hints':0,'summary':None,'bank_ids':constructed['task_ids'] if constructed else self.plan(stage,tags,id),'constructor_plan':{'id':constructed['id'],'title':constructed['title']} if constructed else None,'pending':None,'previous_summary':previous}
+               'messages':[],'attachments':[],'hints':0,'summary':None,'bank_ids':constructed['task_ids'] if constructed else self.plan(stage,tags,id),'constructor_plan':{k:constructed[k] for k in ('id','title','scenario','guide','task_minutes','oral') if k in constructed} if constructed else None,'pending':None,'previous_summary':previous}
         state['company']=employer_simulation(id,state['profile'])
         with self.connect() as db: db.execute('INSERT INTO mock_sessions VALUES(?,?,?,?,?,?,?)',(id,profile['id'],stage,now,0,None,json.dumps(state,ensure_ascii=False)))
         session=self.session(id)
@@ -330,6 +388,71 @@ class MockStore:
     if endpoint.startswith('quality/'):
         return self.quality(endpoint,p,language)
     session=self.session(p.get('session_id'));st=session['state'];version=st['version']
+    if endpoint=='solutions/source':
+        item=next((e for e in self.practice_snapshot(session) if e['id']==p.get('artifact_id')),None)
+        if not item:raise ValueError('Unknown saved solution')
+        return {'code':item['code']}
+    if endpoint=='solutions/prepare':
+        if not session['finished']:raise ValueError('Finish the round before final solution reviews')
+        evidence=self.practice_snapshot(session);reviews=st.setdefault('solution_reviews',{})
+        item=next((e for e in evidence if e['id'] not in reviews or not reviews[e['id']].get('result')),None)
+        if not item:self.save(session,version);return {'request':None,'completed':len(evidence),'total':len(evidence),'session':self.public(session)}
+        task=self.task(item['task_id'],st['language']);entry=reviews.setdefault(item['id'],{'request_id':uuid.uuid4().hex})
+        mode='review_assessment' if task.get('review_code') else 'review'
+        context={'language':st['language'],'stage':session['stage'],'final_interview_review':True,'artifact_id':item['id'],'artifact_kind':item['kind'],'code':task.get('review_code') or item['code'],'candidate_review':item['code'] if task.get('review_code') else None,'test_evidence':item['result'],'bank':[{k:task.get(k) for k in ('id','title','engine','desc','requirements','cases','review')}],'assessment_scope':'If source is empty or incomplete, state that it is unassessed/partial and do not invent defects. Assess this exact artifact separately. Draft/shared code is not a submitted or tested solution. Review correctness against the task contract, edge cases, maintainability, security, complexity and improvements. For written architecture answers assess reasoning and tradeoffs, not compilation. Do not demand features outside the contract.'}
+        self.save(session,version)
+        return {'request':{'request_id':entry['request_id'],'mode':mode,'context':context},'artifact_id':item['id'],'task_id':item['task_id'],'completed':sum(bool(v.get('result')) for v in reviews.values()),'total':len(evidence)}
+    if endpoint=='solutions/complete':
+        if not session['finished']:raise ValueError('The round must be finished')
+        item=next((e for e in self.practice_snapshot(session) if e['id']==p.get('artifact_id')),None)
+        entry=st.get('solution_reviews',{}).get(p.get('artifact_id'),{})
+        if not item or entry.get('request_id')!=p.get('request_id'):raise ValueError('Unknown final solution review')
+        task=self.task(item['task_id'],st['language']);mode='review_assessment' if task.get('review_code') else 'review'
+        result=validate(mode,p.get('result'),[item['task_id']])
+        if not entry.get('result'):entry.update(result=result,provider='codex',completed_at=time.time());self.save(session,version)
+        return {'session':self.public(session)}
+    if endpoint=='coaching/settings':
+        if type(p.get('enabled')) is not bool:raise ValueError('Choose whether the interview director is enabled')
+        st['coaching_enabled']=p['enabled']
+        if not p['enabled']:
+            st.get('coaching',{}).pop('pending',None)
+            st.get('coaching',{}).pop('context',None)
+            st.get('coaching',{})['delivery']='disabled'
+            for item in st.get('companion',{}).get('contexts',[]):
+                if item.get('action')=='coaching' and not item.get('delivered'):
+                    item.update(delivered=time.time(),cancelled=True)
+        self.save(session,version);return {'session':self.public(session)}
+    if endpoint=='coaching/prepare':
+        if session['finished'] or not st.get('coaching_enabled',True) or self.began_at(session) is None or st.get('mode')!='chatgpt':return {'request':None}
+        coach=st.get('coaching',{})
+        if coach.get('pending') and time.time()-coach['requested_at']>420:
+            coach.pop('pending',None);coach.pop('context',None);self.save(session,version);version=st['version']
+        companion=st.get('companion',{})
+        if not companion.get('coaching_ready') or time.time()-companion.get('last_sync',0)>45:return {'request':None}
+        if not coach.get('pending') and time.time()-coach.get('requested_at',self.began_at(session))<120:return {'request':None}
+        transcript=[m for m in st['messages'] if not m.get('preparation')]
+        if not transcript or transcript[-1]['role']!='interviewer':return {'request':None}
+        digest=hashlib.sha256(json.dumps([[m['role'],m['text']] for m in transcript],ensure_ascii=False).encode()).hexdigest()
+        if not transcript or (not coach.get('pending') and digest==coach.get('digest')):return {'request':None}
+        if not coach.get('pending'):
+            context=self.context(session,'continue')
+            context['bank']=[{k:t.get(k) for k in ('id','title','engine','desc')} for t in context['bank']]
+            context['coaching_limitations']='Saved text only; last stable turn is from the interviewer. This is a text heuristic, not proof of audio silence. Prioritize pacing against the actual remaining time and agenda; the bank need not be exhausted. Recommend reducing depth or changing topic rather than adding more questions. Do not infer tone or dishonesty.'
+            coach={'pending':uuid.uuid4().hex,'requested_at':time.time(),'digest':digest,'context':context,'result':coach.get('result')}
+            st['coaching']=coach;self.save(session,version)
+        return {'request':{'request_id':coach['pending'],'mode':'interview_coaching','context':coach['context']}}
+    if endpoint=='coaching/complete':
+        coach=st.get('coaching',{})
+        if session['finished'] or not st.get('coaching_enabled',True):return {'advice':None}
+        if not coach.get('pending') or coach['pending']!=p.get('request_id'):return {'advice':None}
+        result=validate('interview_coaching',p.get('result'))
+        if len(json.dumps(result))>12000 or len(result['next_questions'])>3:raise ValueError('Director advice is too long')
+        if time.time()-coach['requested_at']>420:
+            coach.pop('pending',None);self.save(session,version);return {'advice':None}
+        coach.update(result=result,completed_at=time.time());coach.pop('pending',None);coach.pop('context',None)
+        st.setdefault('coaching_history',[]).append({'id':p['request_id'],'at':time.time(),'result':result})
+        st['coaching_history']=st['coaching_history'][-24:];self.save(session,version)
+        return {'advice':result}
     if endpoint=='add-theory':
         if session['finished']:raise ValueError('This round is finished')
         if session['stage'] not in ('technical','lead'):raise ValueError('Theory expansion is available for technical and lead rounds')
@@ -386,9 +509,12 @@ class MockStore:
         request=self.request(session,action);self.save(session,version)
         return {'session':self.public(session),'request':request}
     if endpoint=='packet':
+        if session['finished'] and any(not e.get('review') for e in self.solution_manifest(session)):raise ValueError('Complete the per-solution reviews before generating the final debrief')
         pending=st.get('pending')
+        if pending and pending['mode']=='summary' and not pending.get('context'):
+            pending['context']=self.context(session,'finish');self.save(session,version)
         if not pending: request=self.request(session,'finish' if session['finished'] else 'prepare' if self.began_at(session) is None else 'continue');self.save(session,version)
-        else: request={'request_id':pending['id'],'mode':pending['mode'],'context':self.translation_context(session,pending['language']) if pending['mode']=='summary_translation' else self.context(session,pending['action']),'schema':SCHEMAS[pending['mode']]}
+        else: request={'request_id':pending['id'],'mode':pending['mode'],'context':self.translation_context(session,pending['language']) if pending['mode']=='summary_translation' else pending.get('context') or self.context(session,pending['action']),'schema':SCHEMAS[pending['mode']]}
         return {'request':request,'instructions':INSTRUCTIONS,'session':self.public(session)}
     if endpoint=='complete':
         pending=st.get('pending')
@@ -403,6 +529,9 @@ class MockStore:
                 if len(result['message'])>16000:raise ValueError('Interviewer introduction exceeds response limit')
         provider=p.get('provider','external')
         if pending['mode']=='summary':
+            if any(not e.get('review') for e in self.solution_manifest(session)):raise ValueError('Final solution reviews are incomplete')
+            expected={e['id'] for e in self.practice_snapshot(session)}
+            if set(result['solution_ids'])!=expected or len(result['solution_ids'])!=len(expected):raise ValueError('The final debrief must acknowledge every reviewed solution')
             seen=set()
             for item in result['turn_classification']:
                 index=item['turn_index']
@@ -411,9 +540,13 @@ class MockStore:
                 if m['role']!='candidate' or m['kind']!='external_turn' or m.get('preparation') or not item['evidence'].strip() or item['evidence'] not in m['text']:raise ValueError('Classification must quote the matching candidate turn')
                 seen.add(index)
             st['summary']={**result,'source':provider};st['summary']['stats']=self.stats(session)
+            if st.get('companion',{}).get('transcript_complete') is False:
+                st['summary']['transcript_partial']=True
+                st['summary']['overview']=('Частичный разбор: только сохранённые реплики. ' if st['language']=='ru' else 'Partial debrief: saved turns only. ')+st['summary']['overview']
             st.pop('summary_translation',None)
         elif pending['mode']=='summary_translation':
             original=st['summary']
+            if result['solution_ids']!=original.get('solution_ids',[]):raise ValueError('Translation must preserve reviewed solution IDs')
             if [d['rating'] for d in result['dimensions']]!=[d['rating'] for d in original['dimensions']] or [d['rating'] for d in result['language_feedback']['dimensions']]!=[d['rating'] for d in original.get('language_feedback',{}).get('dimensions',[])]:raise ValueError('Translation must preserve all ratings')
             if [n['task_id'] for n in result['next_steps']]!=[n['task_id'] for n in original['next_steps']]:raise ValueError('Translation must preserve recommended tasks')
             feedback=original.get('language_feedback') or {}
@@ -427,14 +560,16 @@ class MockStore:
  def translation_context(self,session,language):
     summary=session['state']['summary']
     return {'language':language,'original_language':session['state']['language'],
-            'original_summary':{k:summary.get(k) for k in SCHEMAS['summary_translation']['properties']},
+            'original_summary':{k:summary.get(k,[] if k=='solution_ids' else None) for k in SCHEMAS['summary_translation']['properties']},
             'bank':[{'id':id} for id in session['state']['bank_ids']]}
  def quality(self,endpoint,p,language):
     if endpoint in ('quality/static','quality/prepare'):
         task=self.task(p.get('task_id'),language)
-        if task['engine'] not in ('csharp','postgres','sqlite'):raise ValueError('Code review supports C# and SQL tasks')
+        exercise=task['engine']=='review' and bool(task.get('review_code'))
+        if task['engine'] not in ('csharp','postgres','sqlite') and not exercise:raise ValueError('Choose executable code or a code-review exercise')
+        if exercise and endpoint=='quality/static':raise ValueError('Written review assessment requires Codex CLI or external AI')
         code=limited(p.get('code',''),100000)
-        result=analyze(task,code)
+        result=analyze(task,code) if not exercise else {'source_hash':hashlib.sha256(code.encode()).hexdigest(),'findings':[], 'overview':'Оценивается письменное ревью кандидата.' if language=='ru' else 'Assessing the candidate’s written review.'}
         if endpoint=='quality/static':return {'quality':result}
         if not code.strip():raise ValueError('Enter a solution before requesting AI review')
         evidence=None
@@ -444,16 +579,20 @@ class MockStore:
         id=uuid.uuid4().hex
         context={'language':language,'bank':[{k:task.get(k) for k in ['id','title','desc','requirements','cases','review','source']}],
                  'code':code,'static_signals':result,'test_evidence':evidence,'instructions':'If test_evidence is null, this exact source has no submitted test result. Never claim it passes.'}
-        state={'status':'pending','context':context,'source_hash':result['source_hash'],'result':None}
-        with self.connect() as db:db.execute('INSERT INTO code_reviews VALUES(?,?,?,?)',(id,task['id'],time.time(),json.dumps(state,ensure_ascii=False)))
-        return {'quality':result,'request':{'request_id':id,'mode':'review','context':context,'schema':SCHEMAS['review']},'instructions':INSTRUCTIONS}
+        mode='review_assessment' if exercise else 'review'
+        if exercise:context.update(code=task['review_code'],candidate_review=code,reference_review=task['answer'],test_evidence=None)
+        state={'status':'pending','context':context,'mode':mode,'source_hash':result['source_hash'],'result':None}
+        with self.connect() as db:
+            db.execute('INSERT INTO code_reviews VALUES(?,?,?,?)',(id,task['id'],time.time(),json.dumps(state,ensure_ascii=False)))
+            if exercise:db.execute('UPDATE attempts SET revealed=1 WHERE task_id=? AND finished IS NULL',(task['id'],))
+        return {'quality':result,'request':{'request_id':id,'mode':mode,'context':context,'schema':SCHEMAS[mode]},'instructions':INSTRUCTIONS}
     if endpoint=='quality/complete':
         with self.connect() as db:
             row=db.execute('SELECT * FROM code_reviews WHERE id=?',(p.get('request_id'),)).fetchone()
             if not row:raise ValueError('Unknown review request')
             state=json.loads(row['state'])
             if state['status']!='pending':raise ValueError('Review already completed')
-            result=validate('review',p.get('result'),[row['task_id']])
+            result=validate(state.get('mode','review'),p.get('result'),[row['task_id']])
             state.update(status='complete',result=result,provider=p.get('provider','external'))
             db.execute('UPDATE code_reviews SET state=? WHERE id=?',(json.dumps(state,ensure_ascii=False),row['id']))
             # Advice during an active attempt is assistance; previous independent submissions stay unchanged.
@@ -467,6 +606,18 @@ class MockStore:
         if not separator or not index.isdigit() or int(index)>=len(session['state']['messages']):raise ValueError('Unknown transcript message')
         message=session['state']['messages'][int(index)]
         return message['text']+('\n\n'+message['evidence_note'] if message.get('evidence_note') else '')
+    if kind=='solution':
+        session_id,separator,artifact_id=source_id.partition(':')
+        session=self.session(session_id);review=session['state'].get('solution_reviews',{}).get(artifact_id,{}).get('result')
+        if not separator or not review:raise ValueError('Unknown final solution review')
+        return json.dumps(review,ensure_ascii=False,indent=2)
+    if kind=='coaching':
+        session_id,separator,request_id=source_id.partition(':')
+        session=self.session(session_id)
+        entry=next((x for x in session['state'].get('coaching_history',[]) if x.get('id')==request_id),None)
+        if not separator or not entry:raise ValueError('Unknown director advice')
+        result=entry['result']
+        return '\n'.join([result['guidance'],*result['covered'],*result['unresolved'],*result['next_questions']])
     if kind=='review':
         with self.connect() as db:row=db.execute('SELECT state FROM code_reviews WHERE id=?',(source_id,)).fetchone()
         if not row:raise ValueError('Unknown code review')

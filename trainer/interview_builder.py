@@ -3,6 +3,7 @@ import json
 import random
 import time
 import uuid
+from pathlib import Path
 
 class InterviewBuilder:
  def __init__(self,connect,catalog,public_task):
@@ -15,6 +16,24 @@ class InterviewBuilder:
     return json.loads(row['state'])
  def write(self,s,db):
     db.execute('UPDATE interview_plans SET state=? WHERE id=?',(json.dumps(s,ensure_ascii=False),s['id']))
+ def presets(self,language):
+    from localization import localize_task
+    bank={t['id']:t for t in self.catalog()}
+    definitions=json.loads((Path(__file__).parent/'content/interview_presets.json').read_text())
+    result=[]
+    for preset in definitions:
+        ids=preset['task_ids']
+        if not ids or len(ids)>40 or len(set(ids))!=len(ids) or any(id not in bank for id in ids):raise ValueError('Invalid interview preset: '+preset['id'])
+        limits=preset.get('task_minutes',{})
+        if set(limits)-set(ids) or any(type(v) is not int or not 1<=v<=bank[id]['minutes'] for id,v in limits.items()):raise ValueError('Invalid preset task limits')
+        estimated=sum(limits.get(id,bank[id]['minutes']) for id in ids)
+        if not 10<=preset['minutes']<=120 or estimated>preset['minutes']:raise ValueError('Invalid preset time budget: '+preset['id'])
+        localized={key:value.get(language,value['ru']) if isinstance(value,dict) and 'ru' in value else value for key,value in preset.items()}
+        result.append({**localized,'estimated_minutes':estimated,'tasks':[self.public_task(localize_task({**bank[id],'minutes':limits.get(id,bank[id]['minutes'])},language)) for id in ids]})
+    return result
+ def save_plan(self,s):
+    with self.connect() as db:db.execute('INSERT INTO interview_plans VALUES(?,?,?)',(s['id'],s['created'],json.dumps(s,ensure_ascii=False)))
+    return {'plan':self.public(s)}
  def public(self,s):
     from localization import localize_task
     bank={t['id']:t for t in self.catalog()}
@@ -23,7 +42,8 @@ class InterviewBuilder:
     items=[]
     for id in s['task_ids']:
         a=attempts.get(s['attempts'].get(id));r=json.loads(a['result']) if a and a['result'] else None
-        items.append({'task':self.public_task(localize_task(bank[id],s['language'])),'attempt_id':a['id'] if a else None,
+        task={**bank[id],'minutes':s.get('task_minutes',{}).get(id,bank[id]['minutes'])}
+        items.append({'task':self.public_task(localize_task(task,s['language'])),'attempt_id':a['id'] if a else None,
                       'finished':a['finished'] if a else None,'result':{k:r.get(k) for k in ['status','score','revealed']} if r else None,
                       'assisted':bool(a and (a['revealed'] or (r or {}).get('revealed'))),'self_assessed':bank[id]['engine']=='review'})
     completed=[x for x in items if x['finished'] and x['result'] and x['result']['status']!='checking']
@@ -34,11 +54,24 @@ class InterviewBuilder:
  def route(self,method,path,p,language):
     endpoint=path.removeprefix('/api/interviews/')
     if method=='GET':
+        if endpoint=='presets':return {'presets':self.presets(language)}
         if endpoint=='list':
             with self.connect() as db:rows=db.execute('SELECT state FROM interview_plans ORDER BY created DESC LIMIT 100').fetchall()
             return {'plans':[{k:s.get(k) for k in ['id','title','created','started','finished','minutes']} for s in map(lambda r:json.loads(r['state']),rows)]}
         with self.connect() as db:s=self.read(endpoint,db)
         return {'plan':self.public(s)}
+    if endpoint=='from-preset':
+        preset=next((x for x in self.presets(language) if x['id']==p.get('preset_id')),None)
+        if not preset:raise ValueError('Unknown interview preset')
+        counts={k:0 for k in ('quiz','csharp','sql','review')}
+        for task in preset['tasks']:
+            kind='sql' if task['engine'] in ('postgres','sqlite') else task['engine']
+            counts[kind]+=1
+        s={'id':uuid.uuid4().hex,'title':preset['title'],'created':time.time(),'language':language,'minutes':preset['minutes'],
+           'estimated_minutes':preset['estimated_minutes'],'counts':counts,'actual_counts':dict(counts),'tags':[],
+           'categories':[],'strategy':'preset','preset_id':preset['id'],'scenario':preset['scenario'],'guide':preset['guide'],'task_minutes':preset.get('task_minutes',{}),'oral':preset.get('oral',False),'task_ids':preset['task_ids'],'attempts':{},
+           'started':None,'deadline':None,'finished':None}
+        return self.save_plan(s)
     if endpoint=='generate':
         minutes=p.get('minutes',60);counts=p.get('counts',{});tags=p.get('tags',[]);categories=p.get('categories',[])
         if type(minutes) is not int or not 10<=minutes<=120:raise ValueError('Duration must be 10..120 minutes')
@@ -73,8 +106,7 @@ class InterviewBuilder:
         if not selected:raise ValueError('No matching task fits the time budget; increase the budget or change filters')
         s={'id':seed,'title':title.strip() or 'Interview','created':time.time(),'language':language,'minutes':minutes,'estimated_minutes':used,
            'counts':counts,'actual_counts':actual,'tags':tags,'categories':categories,'strategy':strategy,'task_ids':selected,'attempts':{},'started':None,'deadline':None,'finished':None}
-        with self.connect() as db:db.execute('INSERT INTO interview_plans VALUES(?,?,?)',(seed,s['created'],json.dumps(s,ensure_ascii=False)))
-        return {'plan':self.public(s)}
+        return self.save_plan(s)
     with self.connect() as db:
         db.execute('BEGIN IMMEDIATE');s=self.read(p.get('id'),db)
         if endpoint=='delete':
@@ -89,7 +121,8 @@ class InterviewBuilder:
                 existing=db.execute('SELECT id FROM attempts WHERE task_id=? AND finished IS NULL',(id,)).fetchone()
                 if existing:raise ValueError('Finish the existing open attempt for this task first')
                 task=next(t for t in self.catalog() if t['id']==id);aid=uuid.uuid4().hex
-                db.execute('INSERT INTO attempts(id,task_id,started,deadline) VALUES(?,?,?,?)',(aid,id,now,min(s['deadline'],now+task['minutes']*60)))
+                limit=s.get('task_minutes',{}).get(id,task['minutes'])
+                db.execute('INSERT INTO attempts(id,task_id,started,deadline) VALUES(?,?,?,?)',(aid,id,now,min(s['deadline'],now+limit*60)))
                 s['attempts'][id]=aid
         elif endpoint=='finish':
             s['finished']=s['finished'] or time.time()

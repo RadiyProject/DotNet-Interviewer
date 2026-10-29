@@ -36,6 +36,41 @@ header nav{order:0}header .language-picker{order:0;min-width:0}header .language-
 
 .language-feedback{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}.language-feedback article{margin:14px 0}.language-feedback q{white-space:pre-wrap}
 
+/* Interview plans: keep configuration distinct from the selected scenario. */
+.builder-layout{grid-template-columns:minmax(240px,290px) minmax(0,1fr);gap:20px}
+.builder-layout>*,#builder-plan,.preset-card{min-width:0;overflow-wrap:anywhere}
+.builder-layout .panel{padding:22px}
+.builder-config details{border:0;padding:0}
+.builder-empty .builder-config{display:block}
+.builder-config summary{font-weight:600;color:#e8ecf2;font-size:15px;line-height:1.5}
+.builder-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.builder-counts label{min-width:0}
+.builder-layout .recommendation{font-size:12px;line-height:1.6}
+.builder-overview h2{font-size:22px;margin-bottom:14px}
+.builder-overview p,.builder-overview li{font-size:13px;line-height:1.7}
+.builder-overview details{margin-top:18px}
+.builder-coverage{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.builder-coverage .pill{white-space:normal;font-size:11px;padding:7px 10px}
+.builder-coverage .pill:nth-child(2){color:var(--green);border-color:#48613e;background:#a9ed8e09}
+.builder-assistant h3{font-size:18px;margin:0 0 12px}
+.builder-assistant-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px;align-items:start}
+.builder-assistant-fields>p{grid-column:1/-1;margin:0 0 8px}
+.builder-assistant-fields label{min-width:0}
+.builder-assistant>.primary{margin-top:14px}
+.builder-tasks>details{border:0;padding:0}
+.builder-tasks summary{font-weight:600;color:#e8ecf2;font-size:15px}
+.builder-task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;padding:17px 0;border-top:1px solid var(--line);align-items:center}
+.builder-task>.pill{justify-self:start;white-space:normal}
+.builder-task>strong{grid-column:1;font-size:13px;line-height:1.6;font-weight:550}
+.builder-task>.small{grid-column:1;display:block}
+.builder-task>button{grid-column:2;grid-row:1/4;max-width:170px}
+.preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.preset-card{margin:0}.preset-card:first-child{border-color:#48613e}
+.preset-card h2{font-size:20px;margin-bottom:12px}.preset-card p,.preset-card li{font-size:13px}
+.preset-card>.primary{margin:6px 0 18px}.preset-meta{color:var(--green)}
+@media(max-width:1100px){.builder-layout{grid-template-columns:minmax(200px,240px) minmax(0,1fr)}}
+@media(max-width:900px){.builder-layout{grid-template-columns:minmax(0,1fr)}.builder-layout>aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.builder-layout>aside>.panel{margin:0}.preset-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.builder-layout>aside,.builder-assistant-fields{grid-template-columns:minmax(0,1fr)}.builder-task{grid-template-columns:minmax(0,1fr)}.builder-task>button{grid-column:1;grid-row:auto;justify-self:start}.builder-overview h2{font-size:19px}}
 /* Keep dialog controls outside the scrolling review content. */
 #modal{padding:0;overflow:hidden;max-height:calc(100dvh - 32px)}
 #modal[open]{display:flex;flex-direction:column}

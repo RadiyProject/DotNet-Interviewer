@@ -70,5 +70,17 @@
   "fundamentals": {
     "ru": "Основы .NET",
     "en": ".NET fundamentals"
+  },
+  "cdc": {
+    "ru": "CDC / Debezium",
+    "en": "CDC / Debezium"
+  },
+  "kafka": {
+    "ru": "Apache Kafka",
+    "en": "Apache Kafka"
+  },
+  "gamification": {
+    "ru": "Геймификация",
+    "en": "Gamification"
   }
 }

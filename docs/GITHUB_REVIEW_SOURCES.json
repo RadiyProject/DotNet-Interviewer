@@ -1,0 +1,87 @@
+{
+  "reviewed_on": "2026-10-28",
+  "method": "Inspected pinned public source/documentation files. Original task fragments are independently authored; repository license metadata is recorded for provenance, not a licensing opinion.",
+  "sources": [
+    {
+      "task_id": "A59",
+      "repository": "DapperLib/Dapper",
+      "commit": "eb47546a408bbf6c178bda4f04dc205bc51ffbfe",
+      "file": "Dapper/SqlMapper.cs",
+      "url": "https://github.com/DapperLib/Dapper/blob/eb47546a408bbf6c178bda4f04dc205bc51ffbfe/Dapper/SqlMapper.cs",
+      "observed_repository_license": "Apache-2.0 (License.txt)",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A60",
+      "repository": "App-vNext/Polly",
+      "commit": "e3b73ae5e5b4b6960eb8435289b2d018fc54ed2e",
+      "file": "docs/strategies/retry.md",
+      "url": "https://github.com/App-vNext/Polly/blob/e3b73ae5e5b4b6960eb8435289b2d018fc54ed2e/docs/strategies/retry.md",
+      "observed_repository_license": "BSD-3-Clause",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A61",
+      "repository": "rabbitmq/rabbitmq-tutorials",
+      "commit": "e40db40c3a4adb3aa18a8da7835fe6396254397b",
+      "file": "dotnet/Worker/Worker.cs",
+      "url": "https://github.com/rabbitmq/rabbitmq-tutorials/blob/e40db40c3a4adb3aa18a8da7835fe6396254397b/dotnet/Worker/Worker.cs",
+      "observed_repository_license": "Apache-2.0",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A62",
+      "repository": "dotnet/eShop",
+      "commit": "913acea66708a59595351174cee9b29f37179d29",
+      "file": "src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs",
+      "url": "https://github.com/dotnet/eShop/blob/913acea66708a59595351174cee9b29f37179d29/src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs",
+      "observed_repository_license": "MIT",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A63",
+      "repository": "dotnet/runtime",
+      "commit": "523349107aca82ae8fa2feaaca5a1767619f1111",
+      "file": "src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs",
+      "url": "https://github.com/dotnet/runtime/blob/523349107aca82ae8fa2feaaca5a1767619f1111/src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs",
+      "observed_repository_license": "MIT",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A64",
+      "repository": "dotnet/runtime",
+      "commit": "523349107aca82ae8fa2feaaca5a1767619f1111",
+      "file": "src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs",
+      "url": "https://github.com/dotnet/runtime/blob/523349107aca82ae8fa2feaaca5a1767619f1111/src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs",
+      "observed_repository_license": "MIT",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A65",
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "samples/core/Querying/Pagination/Program.cs",
+      "url": "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/samples/core/Querying/Pagination/Program.cs",
+      "observed_repository_license": "CC-BY-4.0 (repository metadata)",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A66",
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "entity-framework/core/dbcontext-configuration/index.md",
+      "url": "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/entity-framework/core/dbcontext-configuration/index.md",
+      "observed_repository_license": "CC-BY-4.0 (repository metadata)",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    },
+    {
+      "task_id": "A67",
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "samples/core/Querying/Pagination/Program.cs",
+      "url": "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/samples/core/Querying/Pagination/Program.cs",
+      "observed_repository_license": "CC-BY-4.0 (repository metadata)",
+      "adaptation": "Original training composition; no verbatim repository code imported. Failure-inducing usage and task constraints are authored for this exercise."
+    }
+  ]
+}

@@ -58,7 +58,8 @@
       "Q033",
       "Q034",
       "Q051",
-      "Q055"
+      "Q055",
+      "A55"
     ],
     "tags": [
       "api"
@@ -652,7 +653,9 @@
       "Q153",
       "A49",
       "Q159",
-      "A50"
+      "A50",
+      "A71",
+      "Q177"
     ],
     "tags": [
       "e-commerce",
@@ -1214,7 +1217,8 @@
       "Q011",
       "Q012",
       "Q052",
-      "Q140"
+      "Q140",
+      "A63"
     ],
     "tags": [
       "concurrency"
@@ -1350,7 +1354,8 @@
       "Q016",
       "Q017",
       "Q053",
-      "C45"
+      "C45",
+      "A59"
     ],
     "tags": [
       "e-commerce"
@@ -1413,7 +1418,8 @@
     "related": [
       "Q016",
       "Q017",
-      "Q053"
+      "Q053",
+      "A57"
     ],
     "tags": [
       "e-commerce",
@@ -4859,7 +4865,8 @@
       "A05",
       "C11",
       "Q140",
-      "C47"
+      "C47",
+      "A55"
     ],
     "tags": [
       "concurrency"
@@ -5202,7 +5209,8 @@
       "Q060",
       "A12",
       "Q074",
-      "C47"
+      "C47",
+      "A64"
     ],
     "tags": [
       "platform",
@@ -7529,7 +7537,8 @@
     "answer": "new CommandDefinition(\"SELECT id FROM customers WHERE tenant_id=@Tenant AND name=@Name ORDER BY id\",new { Tenant=tenant, Name=name },cancellationToken:ct); await connection.QueryAsync<int>(command), затем ToArray(). Параметры отделяют значения от SQL-кода. Имена столбцов/таблиц не подставляй таким способом; динамические identifiers выбирай из allowlist. Connection остаётся у caller.",
     "related": [
       "Q036",
-      "Q054"
+      "Q054",
+      "A65"
     ],
     "packages": [
       "Microsoft.EntityFrameworkCore.Sqlite",
@@ -9867,7 +9876,8 @@
     "related": [
       "Q094",
       "Q012",
-      "Q113"
+      "Q113",
+      "A63"
     ],
     "tags": [
       "concurrency",
@@ -10500,7 +10510,8 @@
     "related": [
       "Q098",
       "Q056",
-      "A16"
+      "A16",
+      "A70"
     ],
     "tags": [
       "fintech",
@@ -15240,7 +15251,8 @@
       "C25",
       "C35",
       "A28",
-      "T14"
+      "T14",
+      "A56"
     ],
     "tags": [
       "api",
@@ -15306,7 +15318,9 @@
       "Q154",
       "Q155",
       "A49",
-      "A35"
+      "A35",
+      "A56",
+      "A66"
     ],
     "tags": [
       "fintech",
@@ -15355,7 +15369,8 @@
     "related": [
       "A29",
       "T14",
-      "A50"
+      "A50",
+      "A61"
     ],
     "tags": [
       "cloud",
@@ -15725,7 +15740,8 @@
       "Q164",
       "A39",
       "SQL19-PG",
-      "A45"
+      "A45",
+      "A57"
     ],
     "tags": [
       "ai",
@@ -15810,7 +15826,8 @@
       "A53",
       "Q171",
       "Q172",
-      "A54"
+      "A54",
+      "A58"
     ],
     "tags": [
       "concurrency",
@@ -15868,7 +15885,8 @@
       "C47",
       "A52",
       "A53",
-      "A54"
+      "A54",
+      "A64"
     ],
     "tags": [
       "concurrency",
@@ -16097,7 +16115,8 @@
       "C47",
       "A52",
       "A53",
-      "A54"
+      "A54",
+      "A58"
     ],
     "tags": [
       "concurrency",
@@ -16345,7 +16364,8 @@
       "Q171",
       "Q166",
       "Q167",
-      "Q172"
+      "Q172",
+      "A58"
     ],
     "tags": [
       "fintech",
@@ -16471,7 +16491,8 @@
       "Q168",
       "Q169",
       "Q170",
-      "Q171"
+      "Q171",
+      "A61"
     ],
     "tags": [
       "fintech",
@@ -16483,5 +16504,2135 @@
     "title": "API review: not found, upstream failure и отмена",
     "desc": "CurrencyApiClient ловит все исключения и возвращает null при 404, 503, отмене и неизвестной валюте. Endpoint всегда отвечает 404, а timeout ожидания gate не обрабатывает. Предложи явный контракт результата без скрытия причин.",
     "answer": "Используй явные доменные результаты либо разделённые исключения. Например invalid input→400, подтверждённое отсутствие→404, временная недоступность→503 или upstream semantics→502/504 по контракту; это не универсальное соответствие. Отмена вызывающего распространяется и не превращается в «валюта не найдена». Ошибки загрузки не должны бесконтрольно stampede-ить провайдера."
+  },
+  {
+    "id": "A55",
+    "title": "HTTP/async: ревью клиента погоды",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 25,
+    "prio": "P0",
+    "kind": "Code review · письменная практика",
+    "desc": "Внедрённый HttpClient принадлежит DI-контейнеру, BaseAddress настроен. Контракт: 404 → null; остальные неуспешные статусы → HttpRequestException; caller cancellation распространяется. Endpoint вызывается параллельно. Повторов в этой задаче нет.",
+    "requirements": [
+      "Проведи ревью фрагмента: для каждого существенного замечания укажи строку/выражение, сценарий отказа, серьёзность и минимальное исправление.",
+      "Раздели подтверждённые дефекты, риски при дополнительных условиях и предпочтения по стилю. Объясни минимум два свойства, которые уже сделаны правильно.",
+      "Предложи проверки, которые воспроизведут найденные проблемы. Не утверждай, что код или тесты запускались.",
+      "Это письменное упражнение: фрагмент показан отдельно, в редакторе сохраняются твои замечания. Самооценка и AI-фидбек не являются исполняемыми тестами."
+    ],
+    "cases": [],
+    "starter": "Замечания (серьёзность → строка → сценарий → исправление):\n\nЧто сделано правильно:\n\nУточняющие вопросы и допущения:\n\nПлан проверок:\n",
+    "review_code": "public async Task<Weather?> GetAsync(string city, CancellationToken ct)\n{\n\tusing var client = _httpClient;\n\tvar response = client.GetAsync(\"weather?city=\" + city).Result;\n\tif (!response.IsSuccessStatusCode)\n\t\treturn null;\n\treturn await response.Content.ReadFromJsonAsync<Weather>();\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Начни с контракта и конкретного сценария отказа. Не приравнивай предпочтение по стилю к дефекту."
+    ],
+    "review": [
+      "Владение HttpClient и HttpResponseMessage",
+      "Sync-over-async и корректная формулировка риска",
+      "HTTP-контракт, URL и cancellation",
+      "Минимальные исправления и проверяемые сценарии"
+    ],
+    "answer": "using закрывает чужой DI-owned HttpClient: следующие вызовы могут получить ObjectDisposedException. Response следует освобождать отдельно. .Result блокирует поток; в ASP.NET Core не надо объявлять deadlock неизбежным, но под нагрузкой возможны starvation и лишняя блокировка. ct не передан ни в HTTP, ни в JSON. Raw city ломает query при &, # и других символах. Все ошибки ошибочно превращаются в null вместо выделенного 404. Исправление: await GetAsync с экранированным параметром и ct, using response, явный 404 и проверка остальных статусов, ReadFromJsonAsync с ct. Правильно: DI-инъекция позволяет переиспользовать клиент, проверка success стоит до JSON, nullable-модель допускает not found; именно ownership текущего using нарушает первый замысел. Проверки: два вызова одним клиентом, response disposal, город A&B, 404/500, отмена. Не требуй retry/backoff вне контракта.",
+    "source": [
+      "Официальная документация",
+      "https://learn.microsoft.com/dotnet/fundamentals/networking/http/httpclient-guidelines"
+    ],
+    "origin": "Авторское учебное задание. Фрагмент намеренно содержит дефекты; он не исполняется автоматически.",
+    "related": [
+      "T01",
+      "Q052",
+      "A60"
+    ],
+    "tags": [
+      "api",
+      "concurrency",
+      "testing"
+    ]
+  },
+  {
+    "id": "A56",
+    "title": "EF Core: ревью перевода средств и события",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 35,
+    "prio": "P0",
+    "kind": "Code review · письменная практика",
+    "desc": "Реляционный EF Core provider поддерживает transactions. Счета содержат TenantId, Id, Balance и Version concurrency token. Tenant берётся из auth context; global query filters и общая внешняя transaction отсутствуют. Нужны положительный amount, разные счета одного tenant, отсутствие overdraft и согласованное событие для успешно завершённого перевода.",
+    "requirements": [
+      "Проведи ревью фрагмента: для каждого существенного замечания укажи строку/выражение, сценарий отказа, серьёзность и минимальное исправление.",
+      "Раздели подтверждённые дефекты, риски при дополнительных условиях и предпочтения по стилю. Объясни минимум два свойства, которые уже сделаны правильно.",
+      "Предложи проверки, которые воспроизведут найденные проблемы. Не утверждай, что код или тесты запускались.",
+      "Это письменное упражнение: фрагмент показан отдельно, в редакторе сохраняются твои замечания. Самооценка и AI-фидбек не являются исполняемыми тестами."
+    ],
+    "cases": [],
+    "starter": "Замечания (серьёзность → строка → сценарий → исправление):\n\nЧто сделано правильно:\n\nУточняющие вопросы и допущения:\n\nПлан проверок:\n",
+    "review_code": "public async Task<bool> TransferAsync(Guid tenantId, int fromId, int toId,\n\tdecimal amount, CancellationToken ct)\n{\n\ttry\n\t{\n\t\tvar from = await _db.Accounts.SingleAsync(x => x.Id == fromId, ct);\n\t\tvar to = await _db.Accounts.SingleAsync(x => x.Id == toId, ct);\n\t\tfrom.Balance -= amount;\n\t\tawait _db.SaveChangesAsync(ct);\n\t\tawait _bus.PublishAsync(new TransferCompleted(fromId, toId, amount), ct);\n\t\tto.Balance += amount;\n\t\tawait _db.SaveChangesAsync(ct);\n\t\treturn true;\n\t}\n\tcatch (Exception)\n\t{\n\t\treturn true;\n\t}\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Начни с контракта и конкретного сценария отказа. Не приравнивай предпочтение по стилю к дефекту."
+    ],
+    "review": [
+      "Tenant isolation и входные инварианты",
+      "Атомарность двух SaveChanges",
+      "Concurrency token и проверка остатка",
+      "Внешнее событие и неизвестный исход",
+      "Ошибки и отмена не выдаются за успех"
+    ],
+    "answer": "TenantId не используется в запросах. Отсутствуют amount>0, from!=to, проверка доступных средств. Concurrency token помогает обнаружить конфликт, но не заменяет бизнес-проверку; нужно определить retry/conflict policy. Первый SaveChanges уже сохраняет debit, а общий transaction отсутствует: сбой дальше оставляет частичный перевод. Внешнее событие публикуется до credit и не откатывается DB transaction. Минимальная атомарность одной БД: изменить обе записи и сохранить согласованно; для события — transactional outbox с idempotent consumer, без обещания exactly-once. catch возвращает успех при любой ошибке, включая отмену. Правильно: ct передаётся в async APIs, изменения сущностей отслеживаются, async операции ожидаются. Проверки: другой tenant, negative amount, from=to, недостаток средств, конфликт Version, сбой bus/второго сохранения. По условию Version уже существует — не заявляй, что concurrency control полностью отсутствует.",
+    "source": [
+      "Официальная документация",
+      "https://learn.microsoft.com/ef/core/saving/transactions"
+    ],
+    "origin": "Авторское учебное задание. Фрагмент намеренно содержит дефекты; он не исполняется автоматически.",
+    "related": [
+      "C46",
+      "A49",
+      "A60",
+      "A62",
+      "A66"
+    ],
+    "tags": [
+      "fintech",
+      "security",
+      "databases",
+      "architecture",
+      "testing"
+    ]
+  },
+  {
+    "id": "A57",
+    "title": "SQL review: отчёт с размножением строк",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Code review · письменная практика",
+    "desc": "PostgreSQL. Customers(TenantId,Id), Orders(TenantId,Id,CustomerId,CreatedAt), OrderItems(TenantId,OrderId,Qty,UnitPrice), Payments(TenantId,OrderId,Amount,Status). Id уникальны только внутри tenant. Отчёт должен включать всех клиентов tenant, даже без заказов; период [from,to), число заказов, стоимость позиций и сумму Captured payments считаются независимо. Параметры передаются через драйвер, не конкатенацией.",
+    "requirements": [
+      "Проведи ревью фрагмента: для каждого существенного замечания укажи строку/выражение, сценарий отказа, серьёзность и минимальное исправление.",
+      "Раздели подтверждённые дефекты, риски при дополнительных условиях и предпочтения по стилю. Объясни минимум два свойства, которые уже сделаны правильно.",
+      "Предложи проверки, которые воспроизведут найденные проблемы. Не утверждай, что код или тесты запускались.",
+      "Это письменное упражнение: фрагмент показан отдельно, в редакторе сохраняются твои замечания. Самооценка и AI-фидбек не являются исполняемыми тестами."
+    ],
+    "cases": [],
+    "starter": "Замечания (серьёзность → строка → сценарий → исправление):\n\nЧто сделано правильно:\n\nУточняющие вопросы и допущения:\n\nПлан проверок:\n",
+    "review_code": "SELECT c.Id,\n       COUNT(o.Id) AS OrderCount,\n       SUM(i.Qty * i.UnitPrice) AS Revenue,\n       SUM(p.Amount) AS Paid\nFROM Customers c\nLEFT JOIN Orders o ON o.CustomerId = c.Id\nLEFT JOIN OrderItems i ON i.OrderId = o.Id\nLEFT JOIN Payments p ON p.OrderId = o.Id\nWHERE c.TenantId = @tenantId\n  AND o.CreatedAt BETWEEN @from AND @to\n  AND p.Status = 'Captured'\nGROUP BY c.Id;",
+    "review_language": "sql",
+    "hints": [
+      "Начни с контракта и конкретного сценария отказа. Не приравнивай предпочтение по стилю к дефекту."
+    ],
+    "review": [
+      "Tenant входит во все связи",
+      "WHERE не уничтожает пустые LEFT JOIN строки",
+      "Граница периода и независимые агрегации",
+      "Контрпример fan-out и корректные нули",
+      "SQL injection не приписывается параметризованному запросу"
+    ],
+    "answer": "Связи по Id без TenantId смешивают tenant. Предикаты o.CreatedAt и p.Status в WHERE исключают клиентов без подходящих дочерних строк. BETWEEN включает to, но нужен полуоткрытый интервал. Два items и два payments дают четыре строки: COUNT и суммы завышены. COUNT(DISTINCT o.Id) исправит только счётчик, но не суммы; SUM(DISTINCT amount) ломает равные реальные платежи. Агрегируй items и captured payments независимо, фильтруй orders по tenant/периоду, затем присоедини результаты к customers и COALESCE суммы к нулю. Правильно: параметры используются вместо конкатенации, денежные вычисления заданы выражением и группировка делает строку на customer в отфильтрованном наборе. Проверки: клиент без заказов, заказ без payments, два одинаковых Captured payments и два items, соседние tenant с одинаковыми Id, запись ровно в to. Не объявляй использование @ параметров SQL-инъекцией.",
+    "source": [
+      "Официальная документация",
+      "https://www.postgresql.org/docs/18/queries-table-expressions.html"
+    ],
+    "origin": "Авторское учебное задание. Фрагмент намеренно содержит дефекты; он не исполняется автоматически.",
+    "related": [
+      "SQL01-PG",
+      "A51",
+      "A59",
+      "A65",
+      "A67"
+    ],
+    "tags": [
+      "databases",
+      "security",
+      "data-engineering",
+      "testing"
+    ]
+  },
+  {
+    "id": "A58",
+    "title": "Async cache review: гонки и владельцы разрешений",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Code review · письменная практика",
+    "desc": "Контракт: TTL 5 минут после успешной загрузки; ключи eur и EUR обозначают одну валюту; null/исключения не кэшируются. В одном процессе независимые валюты могут загружаться параллельно. load принимает CancellationToken. Ожидание gate ограничено 5 секундами; ошибок провайдера не превращаем в свежую запись. _cache — ConcurrentDictionary<string,Entry>, _locks — ConcurrentDictionary<string,SemaphoreSlim>, Entry содержит decimal? Rate и DateTimeOffset SavedAt.",
+    "requirements": [
+      "Проведи ревью фрагмента: для каждого существенного замечания укажи строку/выражение, сценарий отказа, серьёзность и минимальное исправление.",
+      "Раздели подтверждённые дефекты, риски при дополнительных условиях и предпочтения по стилю. Объясни минимум два свойства, которые уже сделаны правильно.",
+      "Предложи проверки, которые воспроизведут найденные проблемы. Не утверждай, что код или тесты запускались.",
+      "Это письменное упражнение: фрагмент показан отдельно, в редакторе сохраняются твои замечания. Самооценка и AI-фидбек не являются исполняемыми тестами."
+    ],
+    "cases": [],
+    "starter": "Замечания (серьёзность → строка → сценарий → исправление):\n\nЧто сделано правильно:\n\nУточняющие вопросы и допущения:\n\nПлан проверок:\n",
+    "review_code": "public async Task<decimal?> GetAsync(string code, CancellationToken ct)\n{\n\tif (_cache.TryGetValue(code, out var entry) &&\n\t\tDateTimeOffset.UtcNow - entry.SavedAt < TimeSpan.FromMinutes(5))\n\t\treturn entry.Rate;\n\tvar gate = _locks.GetOrAdd(code, _ => new SemaphoreSlim(1, 1));\n\tvar acquired = await gate.WaitAsync(TimeSpan.FromSeconds(5), ct);\n\ttry\n\t{\n\t\tvar savedAt = DateTimeOffset.UtcNow;\n\t\tvar rate = await _load(code.ToUpperInvariant(), CancellationToken.None);\n\t\t_cache[code] = new Entry(rate, savedAt);\n\t\treturn rate;\n\t}\n\tfinally\n\t{\n\t\tgate.Release();\n\t\t_locks.TryRemove(code, out _);\n\t}\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Начни с контракта и конкретного сценария отказа. Не приравнивай предпочтение по стилю к дефекту."
+    ],
+    "review": [
+      "Нормализация до обоих словарей",
+      "Результат acquire и отмена",
+      "Повторная проверка и TTL после load",
+      "Lifetime gate и null policy",
+      "Не выдуманы глобальный lock или межпроцессные гарантии"
+    ],
+    "answer": "acquired игнорируется: false допускает вход без разрешения, затем чужое/лишнее Release. Отменённый WaitAsync находится до try, поэтому именно этот путь не вызывает finally — не приписывай ему безусловный Release. Нормализация только у load оставляет разные cache/gate для eur/EUR. Нет повторной проверки после ожидания. SavedAt взят до load. null сохраняется вопреки контракту; loader лишён ct. TryRemove может отделить ожидающих старого gate от нового gate. При исправлении используй возвращённый GetOrAdd gate, нормализуй до lookup, обработай false перед owner try, повтори чтение, передай ct и сохраняй ненулевое значение после загрузки. Правильно: concurrent containers (предполагаются типами _cache/_locks), WaitAsync с ct, per-key gate и finally после успешного захвата — полезные основы. GetOrAdd здесь создаёт только gate, не бизнес-загрузку: не объявляй любую его factory ошибкой. Проверки: timeout при занятом gate, eur/EUR, два ожидающих, медленный load, null и отмена.",
+    "source": [
+      "Официальная документация",
+      "https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync"
+    ],
+    "origin": "Авторское учебное задание. Фрагмент намеренно содержит дефекты; он не исполняется автоматически.",
+    "related": [
+      "C47",
+      "A52",
+      "Q169"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "fintech",
+      "testing"
+    ]
+  },
+  {
+    "id": "A59",
+    "title": "Dapper: ленивое чтение после Dispose",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 25,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "Используются Dapper и Npgsql. _dataSource.OpenConnection() возвращает новое открытое соединение, принадлежащее методу. Вызывающий перечисляет результат после возврата метода. tenantId получен из auth context, параметры привязаны драйвером; большие выборки допускаются.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "public IEnumerable<OrderRow> ReadOrders(Guid tenantId)\n{\n\tusing var connection = _dataSource.OpenConnection();\n\treturn connection.Query<OrderRow>(\n\t\t\"select id, total from orders where tenant_id = @tenantId\",\n\t\tnew { tenantId }, buffered: false);\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Lifetime reader/connection",
+      "Buffered против streaming",
+      "Без ложного SQL injection",
+      "Раннее прекращение и исключение"
+    ],
+    "answer": "При buffered:false Query возвращает deferred enumeration. Соединение закрывается на выходе до чтения строк. Варианты: материализовать внутри using для ограниченного объёма либо вынести lifetime соединения внутрь iterator/async iterator, освобождая его после завершения или досрочного прекращения перечисления. Нельзя одновременно обещать streaming и освобождение ресурса до чтения. Правильно: tenant-фильтр, параметры и ограниченная проекция; SQL injection здесь не доказана. Уточни порядок, cancellation и допустимый размер результата, не объявляй отсутствие ORDER BY дефектом, если порядок не задан. Проверки: перечисление после return, ранний выход, исключение чтения и большая выборка.",
+    "source": [
+      "DapperLib/Dapper · Dapper/SqlMapper.cs",
+      "https://github.com/DapperLib/Dapper/blob/eb47546a408bbf6c178bda4f04dc205bc51ffbfe/Dapper/SqlMapper.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/DapperLib/Dapper"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/DapperLib/Dapper/commit/eb47546a408bbf6c178bda4f04dc205bc51ffbfe"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по DapperLib/Dapper, файл Dapper/SqlMapper.cs, commit eb47546a408b. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "DapperLib/Dapper",
+      "commit": "eb47546a408bbf6c178bda4f04dc205bc51ffbfe",
+      "file": "Dapper/SqlMapper.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A57",
+      "C09"
+    ],
+    "tags": [
+      "databases",
+      "performance",
+      "testing"
+    ]
+  },
+  {
+    "id": "A60",
+    "title": "Polly: ретраи платежа и кооперативный timeout",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 35,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "Polly v8. Провайдер может списать деньги и затем оборвать ответ или вернуть 500. Idempotency key не поддержан этим вызовом; нужно предотвращать повторные списания и учитывать общий бюджет запроса. _http переиспользуется, payload валиден.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var pipeline = new ResiliencePipelineBuilder<HttpResponseMessage>()\n\t.AddRetry(new RetryStrategyOptions<HttpResponseMessage>\n\t{\n\t\tMaxRetryAttempts = 3,\n\t\tShouldHandle = new PredicateBuilder<HttpResponseMessage>()\n\t\t\t.Handle<HttpRequestException>()\n\t})\n\t.AddTimeout(TimeSpan.FromSeconds(2))\n\t.Build();\n\nreturn await pipeline.ExecuteAsync(async token =>\n{\n\tvar response = await _http.PostAsJsonAsync(\n\t\t\"charges\", payload, CancellationToken.None);\n\tresponse.EnsureSuccessStatusCode();\n\treturn response;\n}, ct);",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Идемпотентность и неизвестный исход",
+      "Токен callback и budget",
+      "Число попыток и predicate",
+      "Владение responses"
+    ],
+    "answer": "Неидемпотентный платёж нельзя безусловно повторять при неизвестном исходе. Нужны поддержанный провайдером idempotency key/проверка статуса либо запрет опасных автоматических retry. MaxRetryAttempts=3 означает до четырёх вызовов, не трёх. Callback игнорирует token pipeline: timeout кооперативен и не доказывает остановку HTTP или отмену списания. Timeout внутри retry относится к отдельной попытке; общий бюджет надо определить отдельно. EnsureSuccessStatusCode превращает HTTP failure в исключение и response этого пути не освобождается. Retry predicate слишком широк для всех HttpRequestException и не классифицирует 4xx/5xx. Не утверждай, что TimeoutRejectedException автоматически повторяется: predicate его не включает. Правильно: клиент переиспользуется, стратегия явно настроена, внешний ct передан в ExecuteAsync. Проверки: провайдер применил эффект и потерял ответ, 400/500, отмена, budget и disposal неуспешных responses.",
+    "source": [
+      "App-vNext/Polly · docs/strategies/retry.md",
+      "https://github.com/App-vNext/Polly/blob/e3b73ae5e5b4b6960eb8435289b2d018fc54ed2e/docs/strategies/retry.md"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/App-vNext/Polly"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/App-vNext/Polly/commit/e3b73ae5e5b4b6960eb8435289b2d018fc54ed2e"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по App-vNext/Polly, файл docs/strategies/retry.md, commit e3b73ae5e5b4. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "App-vNext/Polly",
+      "commit": "e3b73ae5e5b4b6960eb8435289b2d018fc54ed2e",
+      "file": "docs/strategies/retry.md",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A55",
+      "A56"
+    ],
+    "tags": [
+      "fintech",
+      "api",
+      "distributed-systems",
+      "testing"
+    ]
+  },
+  {
+    "id": "A61",
+    "title": "RabbitMQ: ack до обработки и повторная доставка",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "RabbitMQ.Client 7.x, manual ack, prefetch=16, ConsumerDispatchConcurrency=4. _processor сохраняет бизнес-эффект в БД, но не хранит обработанные MessageId. Нужна at-least-once обработка с защитой бизнес-эффекта от дублей. Соединение и channel живут дольше consumer.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var consumer = new AsyncEventingBasicConsumer(channel);\nconsumer.ReceivedAsync += async (_, delivery) =>\n{\n\tvar body = delivery.Body.ToArray();\n\tawait channel.BasicAckAsync(delivery.DeliveryTag, multiple: true);\n\ttry\n\t{\n\t\tawait _processor.ApplyAsync(body, ct);\n\t}\n\tcatch (Exception ex)\n\t{\n\t\t_logger.LogError(ex, \"Processing failed\");\n\t}\n};\nawait channel.BasicConsumeAsync(\"orders\", autoAck: false, consumer);",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Порядок commit/ack",
+      "multiple и конкурирующие callbacks",
+      "Дедупликация и poison messages",
+      "Сохранены верные части consumer"
+    ],
+    "answer": "Ранний ack теряет возможность redelivery при ошибке Apply. multiple:true подтверждает более ранние delivery tags, которые при конкурентной обработке могут ещё не завершиться. После durable commit подтверждай конкретную delivery; обработай отказ по явной retry/dead-letter политике, не делай бесконечный requeue всех ошибок. Даже ack после commit оставляет окно дубля при падении между commit и ack: MessageId/inbox/idempotent business action необходимы. Лог вместо отказа после раннего ack не восстанавливает сообщение. Правильно: body скопирован в пределах callback, используется async consumer и manual-ack режим. Не обещай exactly-once и не называй durable queue защитой от раннего ack. Проверки: обработка упала, падение после commit, два callback завершились в обратном порядке и poison message.",
+    "source": [
+      "rabbitmq/rabbitmq-tutorials · dotnet/Worker/Worker.cs",
+      "https://github.com/rabbitmq/rabbitmq-tutorials/blob/e40db40c3a4adb3aa18a8da7835fe6396254397b/dotnet/Worker/Worker.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/rabbitmq/rabbitmq-tutorials"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/rabbitmq/rabbitmq-tutorials/commit/e40db40c3a4adb3aa18a8da7835fe6396254397b"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по rabbitmq/rabbitmq-tutorials, файл dotnet/Worker/Worker.cs, commit e40db40c3a4a. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "rabbitmq/rabbitmq-tutorials",
+      "commit": "e40db40c3a4adb3aa18a8da7835fe6396254397b",
+      "file": "dotnet/Worker/Worker.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A54",
+      "Q159",
+      "A62"
+    ],
+    "tags": [
+      "distributed-systems",
+      "testing",
+      "architecture"
+    ]
+  },
+  {
+    "id": "A62",
+    "title": "Outbox: published до публикации",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 35,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "PostgreSQL. Бизнес-изменение и запись Outbox уже сохраняются одной transaction — это гарантировано условием. Два dispatcher читают таблицу; возможны падения процесса и сбои broker. У события стабильный Id. Нужно доставлять сохранённые события без тихой потери, дубли допустимы только при безопасной обработке.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var batch = await db.Outbox\n\t.Where(x => !x.Published)\n\t.Take(50)\n\t.ToListAsync(ct);\nforeach (var entry in batch)\n{\n\tentry.Published = true;\n\tawait db.SaveChangesAsync(ct);\n\tawait bus.PublishAsync(entry.Id, entry.Payload, ct);\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Окна потери и дубля",
+      "Claim и восстановление dispatcher",
+      "At-least-once без exactly-once обещаний",
+      "Не приписана отсутствующая проблема producer"
+    ],
+    "answer": "Published до подтверждённой публикации даёт тихую потерю при падении/ошибке broker. Перенос отметки после publish предотвращает эту потерю, но оставляет дубли при падении до SaveChanges. Два dispatcher могут выбрать одинаковые строки: нужен atomic claim/locking/lease с восстановлением, без долгой DB transaction вокруг сетевого вызова. Стабильный event Id поддерживает дедупликацию consumer; broker confirm и идемпотентность — разные гарантии. Повторные попытки, счётчик, backoff и наблюдаемость должны иметь политику. Правильно: бизнес и outbox уже атомарны, Id сохранён, batch ограничен, ct передан. Не обвиняй producer в отсутствии transaction: она задана условием. Отсутствие OrderBy — требование только если нужен порядок; порядок событий здесь отдельно уточняется. Проверки: crash до/после publish, параллельные claims, истёкший lease, broker outage.",
+    "source": [
+      "dotnet/eShop · src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs",
+      "https://github.com/dotnet/eShop/blob/913acea66708a59595351174cee9b29f37179d29/src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/eShop"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/eShop/commit/913acea66708a59595351174cee9b29f37179d29"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/eShop, файл src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs, commit 913acea66708. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/eShop",
+      "commit": "913acea66708a59595351174cee9b29f37179d29",
+      "file": "src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A56",
+      "A61",
+      "A71"
+    ],
+    "tags": [
+      "e-commerce",
+      "distributed-systems",
+      "databases",
+      "architecture"
+    ]
+  },
+  {
+    "id": "A63",
+    "title": "Channels: bounded очередь и неограниченная работа",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 25,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "Один процесс, один reader; HandleAsync потокобезопасен. Требуются явный backpressure или явный отказ при заполнении, максимум 4 обработчика одновременно и учёт принятых работ при штатном завершении. Сохранность при аварийном падении процесса не требуется.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var queue = Channel.CreateBounded<Job>(new BoundedChannelOptions(16)\n{\n\tFullMode = BoundedChannelFullMode.Wait,\n\tSingleReader = true\n});\n\nvoid Enqueue(Job job) => queue.Writer.TryWrite(job);\n\nasync Task RunAsync(CancellationToken stoppingToken)\n{\n\tawait foreach (var job in queue.Reader.ReadAllAsync(stoppingToken))\n\t\t_ = Task.Run(() => HandleAsync(job, CancellationToken.None));\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Результат TryWrite",
+      "Ёмкость не равна concurrency",
+      "Ошибки и shutdown",
+      "Нет выдуманного требования persistence"
+    ],
+    "answer": "TryWrite в Wait mode возвращает false для полной очереди; результат игнорируется, работы теряются молча. Reader немедленно разгружает очередь в fire-and-forget tasks, поэтому capacity=16 не ограничивает число HandleAsync. Ошибки задач и их завершение не учитываются, stoppingToken не передаётся обработке. Используй WriteAsync с ct либо явный rejection; фиксированные 4 awaited workers или иной реальный лимит, учёт ошибок и drain/shutdown policy. SingleReader соответствует одному reader и не ошибка сама по себе. Отсутствие внешнего broker не дефект при заданной in-process модели; не требуй persistent queue без нового требования. Проверки: очередь заполнена, обработчики заблокированы управляемым gate, максимум concurrency, failure одного job, штатный stop.",
+    "source": [
+      "dotnet/runtime · src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs",
+      "https://github.com/dotnet/runtime/blob/523349107aca82ae8fa2feaaca5a1767619f1111/src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/runtime"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/runtime/commit/523349107aca82ae8fa2feaaca5a1767619f1111"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/runtime, файл src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs, commit 523349107aca. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/runtime",
+      "commit": "523349107aca82ae8fa2feaaca5a1767619f1111",
+      "file": "src/libraries/System.Threading.Channels/src/System/Threading/Channels/BoundedChannel.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "C06",
+      "C38"
+    ],
+    "tags": [
+      "concurrency",
+      "performance",
+      "platform",
+      "testing"
+    ]
+  },
+  {
+    "id": "A64",
+    "title": "TaskCompletionSource: гонка ответа и отмены",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 30,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "_pending — ConcurrentDictionary<string,TaskCompletionSource<string>>. Correlation id обязан быть уникальным до завершения операции. Response и отмена могут прийти одновременно; потребители Task имеют произвольные continuations. Отмена должна удалять pending-запись. _sync используется только кодом Complete.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "Task<string> Register(string id, CancellationToken ct)\n{\n\tvar completion = new TaskCompletionSource<string>();\n\t_pending[id] = completion;\n\tct.Register(() => completion.SetCanceled(ct));\n\treturn completion.Task;\n}\n\nvoid Complete(string id, string value)\n{\n\tlock (_sync)\n\t{\n\t\tif (_pending.TryRemove(id, out var completion))\n\t\t\tcompletion.SetResult(value);\n\t}\n}",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Lifecycle correlation id",
+      "TrySet и гонки завершения",
+      "Inline continuations под lock",
+      "Cleanup и старые callbacks"
+    ],
+    "answer": "Индексатор перезаписывает живой correlation id, оставляя прежний Task незавершённым. Конкурентные SetCanceled/SetResult могут бросить исключение: нужны согласованное извлечение/завершение и TrySet варианты. Cancellation не удаляет pending; регистрацию надо освобождать при завершении. Нельзя просто TryRemove(id) из старого callback после повторного использования id: условно удали именно свою запись/введи lifecycle. Default TCS допускает inline continuations; SetResult под lock может выполнять чужой код внутри critical section. Подходы: завершать вне lock и/или RunContinuationsAsynchronously с явным lifecycle; не объявляй deadlock обязательным при каждом SetResult. Правильно: Task отдельно выдаётся потребителю, Complete удаляет запись, TryRemove делает извлечение атомарным. Thread safety TCS не делает атомарным весь registry-протокол. Проверки: duplicate id, cancel/response race, late response, reentrant/slow continuation и cleanup.",
+    "source": [
+      "dotnet/runtime · src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs",
+      "https://github.com/dotnet/runtime/blob/523349107aca82ae8fa2feaaca5a1767619f1111/src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/runtime"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/runtime/commit/523349107aca82ae8fa2feaaca5a1767619f1111"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/runtime, файл src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs, commit 523349107aca. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/runtime",
+      "commit": "523349107aca82ae8fa2feaaca5a1767619f1111",
+      "file": "src/libraries/System.Private.CoreLib/src/System/Threading/Tasks/TaskCompletionSource_T.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "C10",
+      "Q165"
+    ],
+    "tags": [
+      "concurrency",
+      "platform",
+      "testing"
+    ]
+  },
+  {
+    "id": "A65",
+    "title": "EF Core: курсор без уникального порядка",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 25,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "CreatedAt неизменяем, но может совпадать у многих записей. Id — уникальное целое внутри tenant. tenantId доверенный; size уже проверен в диапазоне 1..100. Нужен следующий блок без повтора уже возвращённых записей в неизменившемся наборе. Глобальный snapshot при конкурентных вставках отдельно не обещан.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var page = await db.Orders\n\t.AsNoTracking()\n\t.Where(x => x.TenantId == tenantId && x.CreatedAt >= lastDate)\n\t.OrderBy(x => x.CreatedAt)\n\t.Take(size)\n\t.Select(x => new OrderRow(x.Id, x.CreatedAt, x.Total))\n\t.ToListAsync(ct);\nvar nextCursor = page.Count == 0 ? null : page[^1].CreatedAt.ToString(\"O\");",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Повтор/пропуск на одинаковых датах",
+      "Уникальный порядок и парный cursor",
+      "Совпадение seek/order",
+      "Корректно оценены существующие ограничения"
+    ],
+    "answer": ">= повторяет граничные строки; замена на > без tie-breaker пропустит другие строки той же даты. Нужны OrderBy(CreatedAt).ThenBy(Id), курсор (lastDate,lastId) и согласованный seek: дата больше либо дата равна и Id больше. Размер валиден по условию, tenant-фильтр присутствует: это не пропущенные проверки. AsNoTracking, projection, Take и ct — полезные части. В контракте сортировка и критерий продолжения должны совпадать; clarify курсор, timezone/precision и привязку к фильтрам. Не обещай общий snapshot только от keyset и не требуй offset-пагинацию как обязательное исправление. Проверки: более size строк на одну дату, точная граница, пустой конец и другой tenant.",
+    "source": [
+      "dotnet/EntityFramework.Docs · samples/core/Querying/Pagination/Program.cs",
+      "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/samples/core/Querying/Pagination/Program.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/EntityFramework.Docs"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/EntityFramework.Docs/commit/b0c8daf21d4dd8157e9696e77942278b9722b226"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/EntityFramework.Docs, файл samples/core/Querying/Pagination/Program.cs, commit b0c8daf21d4d. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "samples/core/Querying/Pagination/Program.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A57",
+      "C26",
+      "A67"
+    ],
+    "tags": [
+      "databases",
+      "performance",
+      "api",
+      "testing"
+    ]
+  },
+  {
+    "id": "A66",
+    "title": "EF Core: параллельные запросы в одном DbContext",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 25,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "Обычный реляционный EF Core provider; один scoped _db на запрос, без специальных блокировок. Методы вызываются на горячем пути API. Требуются totals и последние заказы одного tenant. Согласованный snapshot между двумя SELECT пока не является требованием.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var totalTask = _db.Orders\n\t.Where(x => x.TenantId == tenantId)\n\t.SumAsync(x => x.Total, ct);\nvar recentTask = _db.Orders\n\t.AsNoTracking()\n\t.Where(x => x.TenantId == tenantId)\n\t.OrderByDescending(x => x.Id)\n\t.Take(10)\n\t.ToListAsync(ct);\nawait Task.WhenAll(totalTask, recentTask);\nreturn new Summary(await totalTask, await recentTask);",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "WhenAll не сериализует операции",
+      "Один DbContext и lifetime альтернатив",
+      "Границы snapshot consistency",
+      "Доказательства на relational provider"
+    ],
+    "answer": "Вторая операция может стартовать до завершения первой на том же DbContext; EF Core не поддерживает такое конкурентное использование. WhenAll только ожидает уже начатые задачи и не сериализует их. Исправь последовательными await либо используй отдельные DbContext с понятным lifetime и допустимой нагрузкой на pool. Два контекста не дают автоматически общей snapshot consistency; если это понадобится, обсуждай isolation/transaction и объединённый запрос отдельно. Правильно: tenant-фильтр в обоих SELECT, выборка последних записей ограничена Take, ct передаётся, лишнего Task.Run нет. Не приписывай SQL injection или обязательный race balances: операции read-only, а конкретный snapshot не задан. Проверка: управляемое перекрытие выполнения запросов через interceptor/реальный provider, а не только InMemory happy path.",
+    "source": [
+      "dotnet/EntityFramework.Docs · entity-framework/core/dbcontext-configuration/index.md",
+      "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/entity-framework/core/dbcontext-configuration/index.md"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/EntityFramework.Docs"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/EntityFramework.Docs/commit/b0c8daf21d4dd8157e9696e77942278b9722b226"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/EntityFramework.Docs, файл entity-framework/core/dbcontext-configuration/index.md, commit b0c8daf21d4d. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "entity-framework/core/dbcontext-configuration/index.md",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "C46",
+      "A56"
+    ],
+    "tags": [
+      "databases",
+      "concurrency",
+      "performance",
+      "testing"
+    ]
+  },
+  {
+    "id": "A67",
+    "title": "Keyset pagination: решение о принятии PR",
+    "cat": "Code review",
+    "engine": "review",
+    "minutes": 20,
+    "prio": "P0",
+    "kind": "Code review · GitHub-сценарий",
+    "desc": "CreatedAt неизменяем; (TenantId,Id) уникален. tenantId взят из auth context. size уже проверен 1..100. Это следующая страница: cursor соответствует тем же фильтрам, EncodeCursor и decode сохраняют точность времени и id; курсор проверен на входе. OrderRow — reference record. Нужна forward pagination без повторов при неизменившемся наборе; global snapshot, reverse paging и total count не требуются. Реши, одобрить PR или запросить исправления: отсутствие блокирующих дефектов — допустимый вывод.",
+    "requirements": [
+      "Проведи ревью: для каждого замечания укажи строку/выражение, приоритет, воспроизводимый сценарий, минимальное исправление и проверку.",
+      "Отдели дефекты от условных рисков и стиля. Укажи минимум два свойства, которые уже корректны. Не добавляй требования, противоречащие условию.",
+      "Исходный фрагмент ниже — самостоятельная учебная композиция по изученному GitHub-материалу. Ошибки упражнения не приписываются авторам репозитория.",
+      "Запиши замечания в редакторе. Это письменное упражнение: код не выполняется автоматически. Можно получить фидбек Codex CLI или обсудить ревью с голосовым интервьюером."
+    ],
+    "cases": [],
+    "starter": "Замечания (приоритет → строка → сценарий → исправление):\n\nЧто уже корректно:\n\nУточнения и ограничения:\n\nПлан проверок:\n",
+    "review_code": "var page = await db.Orders\n\t.AsNoTracking()\n\t.Where(x => x.TenantId == tenantId &&\n\t\t(x.CreatedAt > lastDate ||\n\t\t(x.CreatedAt == lastDate && x.Id > lastId)))\n\t.OrderBy(x => x.CreatedAt)\n\t.ThenBy(x => x.Id)\n\t.Take(size)\n\t.Select(x => new OrderRow(x.Id, x.CreatedAt, x.Total))\n\t.ToListAsync(ct);\nvar tail = page.LastOrDefault();\nvar cursor = tail is null ? null : EncodeCursor(tail.CreatedAt, tail.Id);",
+    "review_language": "csharp",
+    "hints": [
+      "Покажи конкретный сценарий отказа или interleaving. Сверь предположения с условием и контрактом используемого API."
+    ],
+    "review": [
+      "Проверены инварианты и границы",
+      "Допустим обоснованный approve",
+      "Оптимизации не выданы за дефекты",
+      "Предложены проверки без новых скрытых требований"
+    ],
+    "answer": "По заданному контракту существенный дефект не установлен: tenant из trusted context фильтруется, ключ (CreatedAt,Id) уникален внутри tenant, строгий lexicographic seek совпадает с OrderBy/ThenBy, Take и projection ограничивают чтение, ct передан. Можно обоснованно одобрить код. AsNoTracking допустим; для DTO projection это может быть избыточно, но не correctness bug. Индекс (TenantId,CreatedAt,Id) полезно обсуждать по плану/нагрузке, отсутствие его в фрагменте не доказывает отсутствие в БД. Не требуй COUNT total, reverse paging, cursor crypto или глобальный snapshot, если они вне заданного контракта/уже обеспечены. Попроси проверки одинаковых дат, границы id, пустого конца, tenant isolation и сериализации cursor. Стиль альтернативного порядка Where/OrderBy сам по себе не defect.",
+    "source": [
+      "dotnet/EntityFramework.Docs · samples/core/Querying/Pagination/Program.cs",
+      "https://github.com/dotnet/EntityFramework.Docs/blob/b0c8daf21d4dd8157e9696e77942278b9722b226/samples/core/Querying/Pagination/Program.cs"
+    ],
+    "references": [
+      [
+        "Репозиторий",
+        "https://github.com/dotnet/EntityFramework.Docs"
+      ],
+      [
+        "Зафиксированная версия",
+        "https://github.com/dotnet/EntityFramework.Docs/commit/b0c8daf21d4dd8157e9696e77942278b9722b226"
+      ]
+    ],
+    "origin": "Авторская учебная композиция по dotnet/EntityFramework.Docs, файл samples/core/Querying/Pagination/Program.cs, commit b0c8daf21d4d. Это не неизменённый код репозитория и не утверждение о дефекте upstream.",
+    "source_provenance": {
+      "repository": "dotnet/EntityFramework.Docs",
+      "commit": "b0c8daf21d4dd8157e9696e77942278b9722b226",
+      "file": "samples/core/Querying/Pagination/Program.cs",
+      "kind": "original-training-scenario",
+      "reviewed_on": "2026-10-28"
+    },
+    "related": [
+      "A65",
+      "A57"
+    ],
+    "tags": [
+      "databases",
+      "performance",
+      "api",
+      "testing"
+    ]
+  },
+  {
+    "id": "Q173",
+    "title": "CDC, Debezium и Event Sourcing",
+    "desc": "CDC, Debezium и Event Sourcing",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "CDC фиксирует изменения данных; это само по себе не история доменных намерений",
+      "Любая таблица CDC автоматически становится event store",
+      "Debezium заменяет транзакции приложения",
+      "CDC означает только периодический SELECT всех строк"
+    ],
+    "correct": 0,
+    "answer": "Изменение строки не объясняет бизнес-намерение. CDC, интеграционные события и Event Sourcing имеют разные контракты.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft · SQL Server CDC",
+      "https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-data-capture-sql-server"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A68"
+    ],
+    "tags": [
+      "cdc",
+      "data-engineering"
+    ]
+  },
+  {
+    "id": "Q174",
+    "title": "Debezium остановился: почему растёт WAL?",
+    "desc": "Debezium остановился: почему растёт WAL?",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Необслуживаемый logical replication slot может удерживать WAL",
+      "Слот безопасно удалить без плана восстановления",
+      "Нужно смотреть retained WAL, свободное место и состояние коннектора",
+      "Очистка Kafka offsets всегда сохраняет непрерывность"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Слот — часть восстановления потока. Удаление без контролируемого восстановления может создать разрыв данных.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Debezium · PostgreSQL connector",
+      "https://debezium.io/documentation/reference/stable/connectors/postgresql.html"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A68",
+      "A73"
+    ],
+    "tags": [
+      "cdc",
+      "databases",
+      "devops"
+    ]
+  },
+  {
+    "id": "Q175",
+    "title": "Snapshot в Debezium: операция r",
+    "desc": "Snapshot в Debezium: операция r",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "r — чтение строки в snapshot, его нельзя бездумно игнорировать при построении проекции",
+      "r всегда означает rollback",
+      "Snapshot автоматически исключает все повторы при сбоях",
+      "Snapshot заменяет дальнейшее чтение изменений"
+    ],
+    "correct": 0,
+    "answer": "Начальное состояние и поток изменений нужны совместно; повторная обработка должна быть предусмотрена.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Debezium · PostgreSQL connector",
+      "https://debezium.io/documentation/reference/stable/connectors/postgresql.html"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A68",
+      "A69"
+    ],
+    "tags": [
+      "cdc",
+      "data-engineering"
+    ]
+  },
+  {
+    "id": "Q176",
+    "title": "Delete и tombstone — одно и то же?",
+    "desc": "Delete и tombstone — одно и то же?",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Поведение delete/tombstone зависит от настроек преобразования",
+      "После unwrap удаление всегда выглядит как обычный update",
+      "Контракт удаления проекции нужно проверить явно",
+      "Любое null-value сообщение является новым балансом ноль"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Нельзя переносить предположения о сыром envelope на преобразованный топик: проверь конфигурацию и тестовые записи удаления.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Debezium · New Record State Extraction",
+      "https://debezium.io/documentation/reference/stable/transformations/event-flattening.html"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A69"
+    ],
+    "tags": [
+      "cdc",
+      "data-engineering"
+    ]
+  },
+  {
+    "id": "Q177",
+    "title": "Outbox Event Router: ключ и идентификатор",
+    "desc": "Outbox Event Router: ключ и идентификатор",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "aggregateid может задавать ключ сообщения, а id — идентификатор события",
+      "Event id и player id обязаны быть одинаковыми",
+      "SMT создаёт общую транзакцию между Kafka и балансом в БД",
+      "Использование SMT отменяет необходимость контракта события"
+    ],
+    "correct": 0,
+    "answer": "Ключ агрегата нужен для маршрутизации, event id — для различения событий и дедупликации. Это разные роли.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Debezium · Outbox Event Router",
+      "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A68",
+      "A71",
+      "T14"
+    ],
+    "tags": [
+      "cdc",
+      "kafka",
+      "distributed-systems"
+    ]
+  },
+  {
+    "id": "Q178",
+    "title": "SQL Server CDC: что должен предусмотреть consumer?",
+    "desc": "SQL Server CDC: что должен предусмотреть consumer?",
+    "cat": "CDC / Debezium",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Окно хранения изменений и позицию чтения",
+      "CDC хранит изменения бесконечно без настройки",
+      "Чтение после очистки нужного диапазона требует восстановления",
+      "CDC автоматически применяет изменения к любой внешней системе"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "История CDC имеет эксплуатационные границы; непрерывность чтения и восстановление — ответственность интеграции.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft · SQL Server CDC",
+      "https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-data-capture-sql-server"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A69",
+      "A73"
+    ],
+    "tags": [
+      "cdc",
+      "databases"
+    ]
+  },
+  {
+    "id": "Q179",
+    "title": "Kafka: ключ PlayerId и порядок",
+    "desc": "Kafka: ключ PlayerId и порядок",
+    "cat": "Kafka",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Порядок гарантируется внутри партиции, а не глобально по топику",
+      "Увеличение числа consumer даёт бесконечный параллелизм для одного ключа",
+      "Ключ PlayerId сам делает списание и начисление атомарными в PostgreSQL",
+      "Перепартиционирование никогда не требует анализа порядка"
+    ],
+    "correct": 0,
+    "answer": "Контракт ключа и обработка внутри партиции определяют порядок обработки. Горячий игрок остаётся отдельной проблемой нагрузки.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Apache Kafka · Design",
+      "https://kafka.apache.org/41/design/design/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A70"
+    ],
+    "tags": [
+      "kafka",
+      "gamification",
+      "distributed-systems"
+    ]
+  },
+  {
+    "id": "Q180",
+    "title": "Kafka exactly-once и внешняя БД",
+    "desc": "Kafka exactly-once и внешняя БД",
+    "cat": "Kafka",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Kafka-транзакция сама не делает внешнее обновление SQL атомарным с offset",
+      "Idempotent producer исключает любые повторные бизнес-команды",
+      "Для внешнего эффекта нужен отдельный протокол идемпотентности/согласования",
+      "acks=all означает обработку события всеми consumer"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Гарантии транспорта нельзя выдавать за атомарность произвольного внешнего эффекта.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Apache Kafka · Design",
+      "https://kafka.apache.org/41/design/design/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A70"
+    ],
+    "tags": [
+      "kafka",
+      "databases"
+    ]
+  },
+  {
+    "id": "Q181",
+    "title": "Offset при параллельной обработке одной партиции",
+    "desc": "Offset при параллельной обработке одной партиции",
+    "cat": "Kafka",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Можно коммитить за максимальным завершённым offset, даже если есть незавершённые меньшие",
+      "Коммит должен учитывать непрерывный завершённый диапазон",
+      "Нужно учитывать потерю владения партицией при rebalance",
+      "Auto commit заменяет ожидание бизнес-обработки"
+    ],
+    "correct": [
+      1,
+      2
+    ],
+    "answer": "Не перескакивай через незавершённую работу; потеря владения требует координации in-flight обработки.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Apache Kafka · Consumer configuration",
+      "https://kafka.apache.org/41/configuration/consumer-configs/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A70"
+    ],
+    "tags": [
+      "kafka",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "Q182",
+    "title": "Idempotent producer — достаточно для награды?",
+    "desc": "Idempotent producer — достаточно для награды?",
+    "cat": "Kafka",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Нет: повторная бизнес-отправка может быть отдельной корректной записью Kafka",
+      "Да: пользователь никогда не получит награду дважды",
+      "Да: он блокирует повтор HTTP-запроса",
+      "Он заменяет уникальный ключ операции в ledger"
+    ],
+    "correct": 0,
+    "answer": "Дедупликация транспортных повторов и идентичность бизнес-операции — разные уровни.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Apache Kafka · Producer configuration",
+      "https://kafka.apache.org/41/configuration/producer-configs/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A70"
+    ],
+    "tags": [
+      "kafka",
+      "gamification"
+    ]
+  },
+  {
+    "id": "Q183",
+    "title": "Poison event и порядок операций игрока",
+    "desc": "Poison event и порядок операций игрока",
+    "cat": "Kafka",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Слепо пропустить ошибку и продолжить всегда безопасно",
+      "Политика retry/DLQ должна учитывать порядок и допустимость пропуска",
+      "Нужен наблюдаемый путь исправления и replay",
+      "Бесконечный tight-loop retry не имеет эксплуатационной цены"
+    ],
+    "correct": [
+      1,
+      2
+    ],
+    "answer": "Для зависимых финансовых операций пропуск может менять смысл последующих команд. DLQ — решение политики, не доказательство корректности.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Apache Kafka · Consumer configuration",
+      "https://kafka.apache.org/41/configuration/consumer-configs/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A70"
+    ],
+    "tags": [
+      "kafka",
+      "gamification",
+      "testing"
+    ]
+  },
+  {
+    "id": "Q184",
+    "title": "C4 container — это обязательно Docker?",
+    "desc": "C4 container — это обязательно Docker?",
+    "cat": "Architecture",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Нет: это приложение или хранилище на соответствующем уровне абстракции",
+      "Да: C4 рисует только Docker-контейнеры",
+      "Любая C4-схема обязана содержать все четыре уровня",
+      "Context diagram должен показывать все классы C#"
+    ],
+    "correct": 0,
+    "answer": "Выбирай полезный аудитории уровень: context и container часто достаточны. Deployment описывается отдельно.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "C4 model · Diagrams",
+      "https://c4model.com/diagrams"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A72"
+    ],
+    "tags": [
+      "architecture",
+      "platform"
+    ]
+  },
+  {
+    "id": "Q185",
+    "title": "Как показать последовательность начисления награды?",
+    "desc": "Как показать последовательность начисления награды?",
+    "cat": "Architecture",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Sequence diagram подходит для взаимодействий и альтернативных веток",
+      "Class diagram сам по себе доказывает порядок HTTP и DB commit",
+      "Диаграмма заменяет реализацию транзакционного протокола",
+      "Любая стрелка гарантирует exactly-once"
+    ],
+    "correct": 0,
+    "answer": "Покажи участников, сообщения и ветки ошибки/повтора; свойства исполнения нужно обеспечить и проверить в реализации.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "OMG · UML 2.5.1",
+      "https://www.omg.org/spec/UML/2.5.1/About-UML"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A72"
+    ],
+    "tags": [
+      "architecture",
+      "gamification"
+    ]
+  },
+  {
+    "id": "Q186",
+    "title": "EF Core: конфликт конкурентного начисления",
+    "desc": "EF Core: конфликт конкурентного начисления",
+    "cat": "EF Core",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Concurrency token позволяет обнаружить конфликт обновления",
+      "После конфликта можно всегда повторить старый абсолютный баланс",
+      "Для повтора нужно заново оценить состояние и бизнес-инварианты",
+      "Один scoped DbContext сериализует все реплики приложения"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Обнаружение конфликта не выбирает бизнес-решение. Проверка уникальности награды и повтор должны согласовываться.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft · EF Core concurrency",
+      "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A71",
+      "A75"
+    ],
+    "tags": [
+      "concurrency",
+      "gamification",
+      "databases"
+    ]
+  },
+  {
+    "id": "Q187",
+    "title": "Redis-lock как единственная защита баланса",
+    "desc": "Redis-lock как единственная защита баланса",
+    "cat": "Concurrency",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Истечение lease позволяет второму исполнителю начать работу, пока первый ещё действует",
+      "Удалять lock без проверки владельца всегда безопасно",
+      "Критический инвариант нужно защищать и в системе записи",
+      "Любой lock автоматически делает SQL-транзакцию идемпотентной"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Рассматривай паузы и потерю владения; координация не заменяет ограничения и протокол записи.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Redis · Distributed locks",
+      "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A71"
+    ],
+    "tags": [
+      "gamification",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "Q188",
+    "title": "Spec-Driven Development для AI-кодинга",
+    "desc": "Spec-Driven Development для AI-кодинга",
+    "cat": "AI engineering",
+    "prio": "P0",
+    "minutes": 3,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери все верные утверждения; для зачёта нужен точный набор."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "До генерации полезно согласовать инварианты и проверяемые критерии",
+      "Спецификация гарантирует отсутствие дефектов без независимых проверок",
+      "Изменение требований должно отражаться в спецификации и проверках",
+      "Любой AI-инструмент реализует единственный обязательный стандарт SDD"
+    ],
+    "correct": [
+      0,
+      2
+    ],
+    "answer": "Это процесс работы с требованиями и реализацией, а не гарантия качества сгенерированного результата.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "GitHub · Spec Kit",
+      "https://github.com/github/spec-kit"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A75"
+    ],
+    "tags": [
+      "ai",
+      "testing",
+      "architecture"
+    ]
+  },
+  {
+    "id": "Q189",
+    "title": "AI сгенерировал admin API: где проверять доступ?",
+    "desc": "AI сгенерировал admin API: где проверять доступ?",
+    "cat": "Security",
+    "prio": "P0",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Только в скрытой кнопке фронтенда",
+      "На сервере, включая право на конкретный tenant/resource",
+      "Аутентификация сама разрешает любые операции любого клиента",
+      "TenantId из body автоматически доверенный"
+    ],
+    "correct": 1,
+    "answer": "UI не является границей безопасности. Нужна серверная авторизация операции и объекта.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft · Resource-based authorization",
+      "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased"
+    ],
+    "origin": "Авторское учебное задание по требованиям Senior Backend вакансии и документации. Это не реальные вопросы конкретного работодателя.",
+    "related": [
+      "A74"
+    ],
+    "tags": [
+      "ai",
+      "security",
+      "api"
+    ]
+  },
+  {
+    "id": "A68",
+    "title": "Debezium: ревью конфигурации захвата балансов",
+    "desc": "Коннектор читает PostgreSQL. Другой работающий коннектор уже использует slot.name=shared_slot. Нужна начальная загрузка существующих игроков и восстановление после рестарта без намеренных пропусков. Версии PostgreSQL и Debezium нужно зафиксировать перед правкой. Проведи ревью JSON.",
+    "cat": "CDC / Debezium",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Раздели потерю истории, конфликт слота и начальную загрузку",
+      "Предложи план внедрения и проверки INSERT/UPDATE/DELETE/restart",
+      "Опиши мониторинг WAL/lag/диска и ограничения прав",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Раздели потерю истории, конфликт слота и начальную загрузку",
+      "Предложи план внедрения и проверки INSERT/UPDATE/DELETE/restart",
+      "Опиши мониторинг WAL/lag/диска и ограничения прав"
+    ],
+    "answer": "Слот должен быть отдельным для независимого коннектора; удаление при остановке опасно для восстановления. no_data не создаёт начальную копию существующих строк. Проверь совместимые режимы snapshot и publication для выбранных версий. Исправление конфигурации не восстанавливает уже потерянные изменения: нужен согласованный backfill и сверка.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Debezium · PostgreSQL connector",
+      "https://debezium.io/documentation/reference/stable/connectors/postgresql.html"
+    ],
+    "references": [
+      [
+        "Debezium · Outbox Event Router",
+        "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q173",
+      "Q174",
+      "Q175",
+      "A73",
+      "Q177"
+    ],
+    "tags": [
+      "cdc",
+      "gamification",
+      "devops"
+    ],
+    "review_code": "{\n\t\"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",\n\t\"plugin.name\": \"pgoutput\",\n\t\"topic.prefix\": \"players\",\n\t\"slot.name\": \"shared_slot\",\n\t\"slot.drop.on.stop\": \"true\",\n\t\"snapshot.mode\": \"no_data\",\n\t\"table.include.list\": \"public.player_balances\"\n}",
+    "review_language": "text"
+  },
+  {
+    "id": "A69",
+    "title": "CDC-проекция: snapshot, replay и удаление игрока",
+    "desc": "Спроектируй PostgreSQL-проекцию из Debezium-потока. Исходник имеет PK (TenantId,PlayerId). Одна запись содержит after.balance — абсолютный баланс, не дельту. Возможны snapshot r, update u, delete d, tombstone, повтор и replay. Допусти дополнительные метаданные версии, но опиши их происхождение.",
+    "cat": "CDC / Debezium",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Напиши псевдокод/SQL применения изменений и хранения checkpoint",
+      "Объясни дедупликацию и защиту от устаревшей записи",
+      "Приведи таблицу входов и ожидаемого состояния",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Напиши псевдокод/SQL применения изменений и хранения checkpoint",
+      "Объясни дедупликацию и защиту от устаревшей записи",
+      "Приведи таблицу входов и ожидаемого состояния"
+    ],
+    "answer": "Используй upsert абсолютного состояния, а не прибавление balance. Tenant входит в ключ. Версии сравниваются только в явно заданном порядке источника; нельзя считать произвольные LSN/offset разных партиций глобальной бизнес-версией. Delete/tombstone обрабатываются по согласованному envelope/SMT-контракту. Checkpoint и эффект согласуй транзакционно либо сделай replay безопасным. Проверь r,u,u-repeat,d,tombstone и запоздалую старую запись.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Debezium · New Record State Extraction",
+      "https://debezium.io/documentation/reference/stable/transformations/event-flattening.html"
+    ],
+    "references": [
+      [
+        "Debezium · PostgreSQL connector",
+        "https://debezium.io/documentation/reference/stable/connectors/postgresql.html"
+      ],
+      [
+        "Apache Kafka · Consumer configuration",
+        "https://kafka.apache.org/41/configuration/consumer-configs/"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q175",
+      "Q176",
+      "Q178"
+    ],
+    "tags": [
+      "cdc",
+      "databases",
+      "testing"
+    ]
+  },
+  {
+    "id": "A70",
+    "title": "Kafka/.NET: награда до коммита БД",
+    "desc": "Частичный фрагмент consumer. Брокер может повторять доставку. RewardEvent имеет уникальный EventId и положительный Amount. Изначально повторов EventId в БД не запрещают; handler может упасть. Нельзя начислить награду дважды или потерять её после коммита offset. Покажи дефекты и эскиз транзакционного исправления.",
+    "cat": "Code review",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Покажи окна сбоя и потерю порядка при Task.Run",
+      "Свяжи inbox, изменение баланса и транзакцию",
+      "Добавь duplicate/concurrency/rebalance проверки",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Покажи окна сбоя и потерю порядка при Task.Run",
+      "Свяжи inbox, изменение баланса и транзакцию",
+      "Добавь duplicate/concurrency/rebalance проверки"
+    ],
+    "answer": "Commit до эффекта теряет событие при сбое. Fire-and-forget скрывает ошибки и усложняет владение партицией; захваченный DbContext непригоден для параллельных задач. Нужны отдельный контекст на единицу работы, атомарные inbox+эффект с уникальным (tenant,eventId), и offset после завершённого непрерывного диапазона. Повтор после commit БД должен быть no-op. Одного переноса Commit вниз недостаточно.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Apache Kafka · Consumer configuration",
+      "https://kafka.apache.org/41/configuration/consumer-configs/"
+    ],
+    "references": [
+      [
+        "Apache Kafka · Design",
+        "https://kafka.apache.org/41/design/design/"
+      ],
+      [
+        "Microsoft · EF Core concurrency",
+        "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q179",
+      "Q180",
+      "Q181",
+      "Q182",
+      "Q183",
+      "A30"
+    ],
+    "tags": [
+      "kafka",
+      "gamification",
+      "concurrency",
+      "testing"
+    ],
+    "review_code": "while (!ct.IsCancellationRequested)\n{\n\tvar record = consumer.Consume(ct);\n\tconsumer.Commit(record);\n\t_ = Task.Run(async () =>\n\t{\n\t\tvar e = record.Message.Value;\n\t\tvar player = await db.Players.FindAsync(e.PlayerId);\n\t\tplayer.Balance += e.Amount;\n\t\tawait db.SaveChangesAsync();\n\t});\n}",
+    "review_language": "csharp"
+  },
+  {
+    "id": "A71",
+    "title": "Баланс игрока: ledger, повторы и конкурентное списание",
+    "desc": "Есть две валюты и несколько tenants. Запрос Spend(operationId,playerId,currency,amount) может повторяться после timeout; две операции могут конкурировать. В рамках одного PostgreSQL нужно не допустить отрицательного баланса и повторного эффекта. Спроектируй SQL-схему, транзакцию и API-ответы.",
+    "cat": "Architecture",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Задай уникальность, денежные типы и границы tenant/currency",
+      "Опиши конкурентность, идемпотентность и конфликт payload",
+      "Дай минимум шесть проверок, включая сбой после commit",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Задай уникальность, денежные типы и границы tenant/currency",
+      "Опиши конкурентность, идемпотентность и конфликт payload",
+      "Дай минимум шесть проверок, включая сбой после commit"
+    ],
+    "answer": "Уникальный tenant+operationId связывается с хешем/каноническими параметрами запроса и результатом. Другой payload с тем же ключом конфликтует. Изменение баланса и запись операции атомарны; условный UPDATE с проверкой остатка или корректная блокировка защищает конкурентное списание. Не используй binary float. История операций позволяет сверку; reversal отдельной операцией. Outbox сохраняется в той же транзакции, если нужен внешний event.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Microsoft · EF Core concurrency",
+      "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+    ],
+    "references": [
+      [
+        "Debezium · Outbox Event Router",
+        "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q186",
+      "Q187",
+      "T14",
+      "A62",
+      "A72",
+      "A74",
+      "A75",
+      "Q177"
+    ],
+    "tags": [
+      "gamification",
+      "fintech",
+      "databases",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "A72",
+    "title": "Геймификация: C4 и UML от запроса до аналитики",
+    "desc": "Спроектируй учебную платформу: администратор задаёт правила, игрок получает награду, финансовая запись хранится в PostgreSQL, аналитика обновляется через Kafka/CDC. AI предлагает конфигурацию, но не имеет права напрямую менять баланс. Напиши Mermaid/PlantUML либо текстовую спецификацию схем; редактор не рендерит диаграммы автоматически.",
+    "cat": "Architecture",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Покажи context и container, владельцев данных и границы доверия",
+      "Добавь sequence начисления с timeout/retry и CDC lag",
+      "Обоснуй синхронные/асинхронные контракты и ADR",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Покажи context и container, владельцев данных и границы доверия",
+      "Добавь sequence начисления с timeout/retry и CDC lag",
+      "Обоснуй синхронные/асинхронные контракты и ADR"
+    ],
+    "answer": "На context покажи людей и внешние системы; container раскрой API, хранилища и обработчики без смешения с pod. На sequence укажи commit и публикацию, duplicate и отказ. Раздели источник истины баланса и eventual-consistent аналитику; обозначь авторизацию и версионирование правил. Kafka/CDC не участвует в мгновенном разрешении списания по устаревшей проекции. ADR фиксирует альтернативы, ограничения и последствия.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "C4 model · Diagrams",
+      "https://c4model.com/diagrams"
+    ],
+    "references": [
+      [
+        "OMG · UML 2.5.1",
+        "https://www.omg.org/spec/UML/2.5.1/About-UML"
+      ],
+      [
+        "Debezium · Outbox Event Router",
+        "https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q184",
+      "Q185",
+      "A71"
+    ],
+    "tags": [
+      "architecture",
+      "gamification",
+      "cdc",
+      "kafka"
+    ]
+  },
+  {
+    "id": "A73",
+    "title": "CDC-инцидент: lag, WAL и безопасное восстановление",
+    "desc": "Во время акции lag аналитики вырос с секунд до 25 минут, на БД осталось 12% диска. Consumer lag и connector status пока неизвестны. Дежурный предлагает удалить replication slot и offsets. Подготовь первые действия и runbook без предположения, что проблема обязательно в Kafka.",
+    "cat": "CDC / Debezium",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Раздели задержку source/connector/broker/consumer/sink",
+      "Опиши защиту доступности и контролируемое восстановление",
+      "Задай сверку, RPO/RTO и подтверждение отсутствия разрыва",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Раздели задержку source/connector/broker/consumer/sink",
+      "Опиши защиту доступности и контролируемое восстановление",
+      "Задай сверку, RPO/RTO и подтверждение отсутствия разрыва"
+    ],
+    "answer": "Сначала установи участок задержки и темп расхода диска: retained WAL, позиции и health connector, throughput брокера, consumer progress, скорость записи sink. Удаление слота/offsets не является обычной очисткой: нужна оценка потери данных и backfill. Снижение нагрузки или расширение ресурса выбирают по измерениям. Согласуй восстановление, контрольные точки, идемпотентный replay и сверку итогов; не объявляй нулевой RPO без доказательства.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Debezium · PostgreSQL connector",
+      "https://debezium.io/documentation/reference/stable/connectors/postgresql.html"
+    ],
+    "references": [
+      [
+        "Apache Kafka · Consumer configuration",
+        "https://kafka.apache.org/41/configuration/consumer-configs/"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "A68",
+      "Q174",
+      "Q178"
+    ],
+    "tags": [
+      "cdc",
+      "devops",
+      "data-engineering"
+    ]
+  },
+  {
+    "id": "A74",
+    "title": "AI-кодинг: административное начисление без авторизации",
+    "desc": "AI создал endpoint ниже. Authentication middleware уже включён, но endpoint не имеет политики Admin и tenant из запроса не проверяется. Генератор заверяет, что скрытая кнопка доступна только оператору. Сумма не проверяется. Проведи ревью и сформулируй независимые негативные тесты.",
+    "cat": "Code review",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Отдели authentication от авторизации операции и ресурса",
+      "Укажи идемпотентность, аудит и валидацию суммы",
+      "Предложи безопасный контракт AI-предложения и подтверждения",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Отдели authentication от авторизации операции и ресурса",
+      "Укажи идемпотентность, аудит и валидацию суммы",
+      "Предложи безопасный контракт AI-предложения и подтверждения"
+    ],
+    "answer": "Нужны серверная политика и проверка tenant/resource, валидация суммы/валюты и авторизованный actor в аудите. Начисление должно идти через сервис инвариантов с operationId, а не произвольное изменение ledger из контроллера. Проверки: анонимный, обычный игрок, чужой tenant, повтор, отрицательная сумма и сбой после commit. AI предлагает изменение правил/кода; права на деньги ему автоматически не делегируются.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "Microsoft · Resource-based authorization",
+      "https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased"
+    ],
+    "references": [
+      [
+        "Microsoft · EF Core concurrency",
+        "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q189",
+      "A71"
+    ],
+    "tags": [
+      "ai",
+      "security",
+      "gamification",
+      "api"
+    ],
+    "review_code": "app.MapPost(\"/admin/rewards\", async (RewardRequest r, AppDbContext db) =>\n{\n\tdb.Rewards.Add(new Reward { TenantId = r.TenantId,\n\t\tPlayerId = r.PlayerId, Amount = r.Amount });\n\tawait db.SaveChangesAsync();\n\treturn Results.Ok();\n});",
+    "review_language": "csharp"
+  },
+  {
+    "id": "A75",
+    "title": "Spec-Driven Development: награда раз в сутки",
+    "desc": "До AI-генерации реализуй спецификацию DailyReward. Требование бизнеса: «игрок получает награду раз в день», возможны часовые пояса, повторные HTTP-запросы и изменение размера награды администратором. Не выбирай скрыто трактовку дня: зафиксируй вопросы и явно принятый вариант.",
+    "cat": "AI engineering",
+    "engine": "review",
+    "prio": "P0",
+    "minutes": 35,
+    "kind": "Практика · разбор сценария",
+    "requirements": [
+      "Определи границы дня, tenant и версию правил",
+      "Напиши Given/When/Then, API и инварианты БД",
+      "Опиши независимую проверку AI-кода и миграций",
+      "Это письменная практика: подготовь решение/план и проверки в редакторе. Автоматический запуск Kafka, Debezium или схем здесь не выполняется; доступны самооценка и AI-разбор."
+    ],
+    "cases": [],
+    "starter": "Решение и инварианты:\n\nСценарии сбоев:\n\nПроверки:\n",
+    "review": [
+      "Определи границы дня, tenant и версию правил",
+      "Напиши Given/When/Then, API и инварианты БД",
+      "Опиши независимую проверку AI-кода и миграций"
+    ],
+    "answer": "Сначала согласуй календарный или скользящий день и часовой пояс. Уникальность бизнес-награды отличается от idempotency key HTTP: оба нужны в контракте. Зафиксируй момент выбора версии правил и денежных параметров. Проверь конкурентные запросы, границу суток, DST при локальном календаре, повтор после timeout и изменение конфигурации. Specification → план → реализация → независимая проверка; сгенерированные happy-path тесты не доказывают инварианты.",
+    "hints": [
+      "Начни с инварианта и конкретного сценария сбоя, затем объясни минимальное исправление."
+    ],
+    "source": [
+      "GitHub · Spec Kit",
+      "https://github.com/github/spec-kit"
+    ],
+    "references": [
+      [
+        "Microsoft · EF Core concurrency",
+        "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+      ]
+    ],
+    "origin": "Самостоятельный учебный сценарий по требованиям вакансии, не утверждение о реальной архитектуре работодателя.",
+    "related": [
+      "Q188",
+      "Q186",
+      "A71"
+    ],
+    "tags": [
+      "ai",
+      "gamification",
+      "testing",
+      "architecture"
+    ]
+  },
+  {
+    "id": "Q190",
+    "title": "Unit: что проверять?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Unit: что проверять?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Наблюдаемое поведение и граничные случаи",
+      "Каждый private-метод",
+      "Только число вызовов mock",
+      "Только happy path"
+    ],
+    "correct": 0,
+    "answer": "Проверка поведения позволяет менять реализацию без переписывания корректных тестов. Тест должен падать при нарушении контракта.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q191",
+    "title": "Почему EF InMemory недостаточно для проверки PostgreSQL?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Почему EF InMemory недостаточно для проверки PostgreSQL?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Он не воспроизводит SQL, ограничения и транзакционную семантику PostgreSQL",
+      "Он всегда медленнее PostgreSQL",
+      "Он требует Docker",
+      "Он проверяет все SQL-запросы"
+    ],
+    "correct": 0,
+    "answer": "Проверяй persistence на той же СУБД, что в production: миграции, unique/FK, перевод LINQ в SQL и rollback. InMemory пригоден для более узких проверок.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q192",
+    "title": "Как проверить конкурентное списание?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Как проверить конкурентное списание?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Согласованно запустить конкурирующие операции и проверить баланс, ledger и допустимые отказы",
+      "Запустить один успешный перевод",
+      "Поставить Thread.Sleep и проверить HTTP 200",
+      "Замокать DbContext"
+    ],
+    "correct": 0,
+    "answer": "Нужны отдельные соединения/контексты, контролируемое пересечение операций и проверка инвариантов после завершения. Учти retries и ограничения БД.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q193",
+    "title": "Как проверить идемпотентность платежа?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Как проверить идемпотентность платежа?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Повторить один ключ, включая параллельный повтор, и проверить ровно один финансовый эффект",
+      "Повторить с новым ключом",
+      "Проверить только текст ответа",
+      "Повторить лишь после очистки БД"
+    ],
+    "correct": 0,
+    "answer": "Проверь ledger и баланс, воспроизводимый результат, конфликт того же ключа с другим payload и повтор после сбоя ответа.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q194",
+    "title": "Как тестировать eventual consistency без flaky sleep?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Как тестировать eventual consistency без flaky sleep?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Ожидать проверяемое условие с ограниченным timeout и диагностикой",
+      "Всегда спать одну секунду",
+      "Убрать timeout",
+      "Проверять сразу после публикации"
+    ],
+    "correct": 0,
+    "answer": "Используй polling/сигнал завершения с дедлайном, уникальные данные и диагностикой последнего состояния. Timeout — граница теста, а не гарантия времени доставки.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q195",
+    "title": "Что проверять при повторной доставке Kafka-события?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Что проверять при повторной доставке Kafka-события?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Повтор не создаёт второй бизнес-эффект; обработчик восстанавливается после сбоя",
+      "Только вызов producer.Send",
+      "Только отсутствие exception",
+      "Глобальный порядок всех партиций"
+    ],
+    "correct": 0,
+    "answer": "Внедри сбой между бизнес-эффектом и commit offset; повтори событие и проверь дедупликацию, состояние БД и дальнейшую обработку.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q196",
+    "title": "Что показывает 100% code coverage?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Что показывает 100% code coverage?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Что измеряемый код исполнялся, но не что assertions проверяют правильное поведение",
+      "Что дефектов нет",
+      "Что все конкурентные сценарии проверены",
+      "Что интеграционные тесты не нужны"
+    ],
+    "correct": 0,
+    "answer": "Coverage помогает искать непроверенные участки. Качество assertions, граничные случаи и реальные отказы оцениваются отдельно.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
+  },
+  {
+    "id": "Q197",
+    "title": "Как изолировать интеграционные тесты БД?",
+    "cat": "Testing",
+    "prio": "P1",
+    "minutes": 2,
+    "kind": "Теория · выбор ответа",
+    "engine": "quiz",
+    "desc": "Как изолировать интеграционные тесты БД?",
+    "requirements": [
+      "Выбери один лучший ответ."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Уникальные данные/схема или отдельная БД и контролируемая очистка; учитывать параллелизм",
+      "Один общий tenant и порядок запуска",
+      "Отключить constraints",
+      "Всегда полагаться на внешний rollback"
+    ],
+    "correct": 0,
+    "answer": "Rollback внешней транзакции не изолирует сервис с собственными соединениями и фоновые consumer. Изоляция должна охватывать реальные границы обработки.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Microsoft: .NET testing",
+      "https://learn.microsoft.com/en-us/dotnet/core/testing/"
+    ],
+    "origin": "Interview preparation",
+    "related": [
+      "A28",
+      "C37"
+    ],
+    "tags": [
+      "testing"
+    ]
   }
 ]
