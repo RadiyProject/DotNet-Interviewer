@@ -70,3 +70,13 @@ make codex-login  # один раз авторизовать Codex внутри 
 [Финальная проверка всех решений раунда через Codex CLI](docs/ROUND_SOLUTION_REVIEWS.md): автоматическая привязка новых попыток, отдельные сохранённые разборы и итоговая сводка.
 
 [Подготовка к Senior Backend: геймификация, Debezium/CDC, Kafka и C4/UML](docs/GAMIFICATION_CDC_PACK.md) — теория и связанные практические сценарии.
+
+[System design: девять новых сценариев и три готовых раунда](docs/SYSTEM_DESIGN_PACK_20261102.md) — capacity, лента, большие файлы, поиск, rate limiter, регионы, backlog, реплики/sharding и gateway.
+
+[Практика тестирования: C48–C51](docs/TESTING_PRACTICE_PACK.md) — напиши NUnit-тесты для HTTP, TTL, сортировки и SQLite rollback; тренажёр проверит их на корректном коде и дефектных вариантах.
+
+[Security, CI/CD, Kubernetes, Git, CQRS/DDD/Clean Architecture и командные процессы](docs/ENGINEERING_TOPICS_PACK_20261102.md) — 24 вопроса и 13 практических кейсов с отдельными темами и тегами.
+
+[Retry и Circuit Breaker](docs/RESILIENCE_PRACTICE_PACK.md) — Q225–Q230, исполняемые C52–C53 и кейсы A104–A105: exponential backoff/jitter, deadline, состояния breaker и Polly v8.
+
+- [Библиотеки .NET: вопросы и практика](docs/DOTNET_LIBRARIES_PACK.md)

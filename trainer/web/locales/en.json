@@ -212,5 +212,16 @@
   "Конструктор": "Builder",
   "Архитектура": "Architecture",
   "Источники": "Resources",
-  "Готовые варианты": "Ready-made plans"
+  "Готовые варианты": "Ready-made plans",
+  "Теория, разборы и практика написания тестов. В практических заданиях пиши NUnit-проверки: тренажёр сверит их на корректном коде и дефектных вариантах. Разборы сценариев оцениваются по рубрике.": "Theory, scenario reviews and hands-on test writing. Write NUnit checks in practical tasks: the trainer runs them against correct code and defective variants. Scenario reviews use self-assessment rubrics.",
+  "Начни с C37, затем C50 (свойства), C49 (время), C48 (HTTP) и C51 (транзакции). На полную практическую задачу отведи 25–40 минут. Сначала собственные тесты, затем проверка и разбор; на устном интервью объясняй, какой дефект выявляет каждый сценарий.": "Start with C37, then C50 (properties), C49 (time), C48 (HTTP) and C51 (transactions). Allow 25–40 minutes for a full practical task. Write your own tests before checking and reading the explanation; in verbal interviews, explain which defect each case detects.",
+  "Как проходить": "How to practice",
+  "Командная работа": "Teamwork",
+  "Процессы и методологии": "Processes & methodologies",
+  "Отказоустойчивость": "Resilience",
+  "Базы данных": "Databases",
+  "C# / API": "C# / API",
+  "Кеширование": "Caching",
+  "Kafka": "Kafka",
+  "Наблюдаемость": "Observability"
 }

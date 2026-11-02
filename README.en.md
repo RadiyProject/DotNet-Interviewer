@@ -55,3 +55,13 @@ AI rounds now start in preparation mode without consuming interview time. Connec
 Async TTL caching and stampede protection: C47, Q165–Q172, A52–A54. [Coverage and check limitations](docs/ASYNC_CACHE_PACK.md).
 
 Gamification / CDC role pack: Q173–Q189 and A68–A75, available in English and Russian. [Scope and sources](docs/GAMIFICATION_CDC_PACK.md).
+
+[System design: nine new scenarios and three interview rounds](docs/SYSTEM_DESIGN_PACK_20261102.md) — capacity, feeds, large files, search, rate limiting, regions, backlog, replicas/sharding and gateways. The review notes are in Russian; every exercise and preset supports English.
+
+[Testing practice: C48–C51](docs/TESTING_PRACTICE_PACK.md) — write NUnit checks for HTTP, TTL, sorting and SQLite rollback; the trainer evaluates them against correct and defective implementations. Notes are in Russian; all exercises support English.
+
+[Security, CI/CD, Kubernetes, Git, CQRS/DDD/Clean Architecture and team processes](docs/ENGINEERING_TOPICS_PACK_20261102.md) — 24 questions and 13 practical cases with dedicated topics/tags. All exercises are bilingual; the index notes are in Russian.
+
+[Retry and Circuit Breaker](docs/RESILIENCE_PRACTICE_PACK.md) — Q225–Q230, executable C52–C53 and A104–A105 reviews: exponential backoff/jitter, deadlines, breaker states and Polly v8. Exercises are bilingual; notes are in Russian.
+
+- [.NET libraries: questions and practice](docs/DOTNET_LIBRARIES_PACK.md)

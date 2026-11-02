@@ -248,7 +248,14 @@
       "Microsoft: testing ASP.NET Core integration",
       "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
     ],
-    "starter": "// TODO: create xUnit/MSTest tests for IWeatherClient\n// Mention Moq, NSubstitute, FakeItEasy\n// NOT be able to IQueryable as if it were a real SQL database."
+    "starter": "// TODO: create xUnit/MSTest tests for IWeatherClient\n// Mention Moq, NSubstitute, FakeItEasy\n// NOT be able to IQueryable as if it were a real SQL database.",
+    "related": [
+      "Q025",
+      "Q026",
+      "Q055",
+      "C48",
+      "A115"
+    ]
   },
   "T09": {
     "title": "SQL: indexes and query plan",
@@ -4942,7 +4949,13 @@
         "https://github.com/dotnet/eShop"
       ]
     ],
-    "starter": "Assumptions and invariants:\n\nContract and data model:\n\nOptions and selected design:\n\nFailure/recovery scenarios:\n\nTest plan and metrics:\n"
+    "starter": "Assumptions and invariants:\n\nContract and data model:\n\nOptions and selected design:\n\nFailure/recovery scenarios:\n\nTest plan and metrics:\n",
+    "related": [
+      "Q080",
+      "Q047",
+      "C16",
+      "A113"
+    ]
   },
   "A19": {
     "title": "SignalR: reconnect, multiple replicas and missing events",
@@ -6520,7 +6533,16 @@
       "Documentation for verification",
       "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy"
     ],
-    "starter": "Contract/invariants:\n\nCode, diagram or configuration:\n\nOptions and choice:\n\nFailures and recovery:\n\nCheck, commands and expected observations:\n"
+    "starter": "Contract/invariants:\n\nCode, diagram or configuration:\n\nOptions and choice:\n\nFailures and recovery:\n\nCheck, commands and expected observations:\n",
+    "related": [
+      "Q093",
+      "C37",
+      "A08",
+      "A49",
+      "A50",
+      "C51",
+      "A116"
+    ]
   },
   "A29": {
     "title": "RabbitMQ: publish confirmation is not equal to consumer execution",
@@ -11096,5 +11118,2791 @@
     ],
     "answer": "An outer rollback does not isolate services with independent connections or background consumers. Isolation must cover actual processing boundaries.",
     "origin": "Interview preparation"
+  },
+  "A76": {
+    "title": "Bloom filter: false positives and safe deletion",
+    "kind": "Practice · verbal review",
+    "desc": "After inserting x1–x4 into a counting Bloom filter, the three counters queried by y are 3, 1, 1. y itself was never inserted. Explain the result, conversion to bits and deletion risks. This is an original exercise based on the attached diagram; the interviewer’s exact question is unknown.",
+    "requirements": [
+      "Distinguish definitely absent from possibly present for a correctly built, up-to-date standard Bloom filter.",
+      "Show the false positive for y and explain why matching hash positions do not prove membership.",
+      "Explain deletion in standard and counting Bloom filters, including deleting an absent key and counter overflow.",
+      "For the additional transformation b[i] = 1 if counter[i] > Θ, compute y’s bits at Θ = 0, 1, 3. Do not assign standard Bloom filter guarantees to this rule.",
+      "Propose safe use before a database, covering new writes, stale state and rebuilding."
+    ],
+    "cases": [],
+    "starter": "Assumptions and contract:\n\nQuerying y:\n\nDeletion and guarantee boundaries:\n\nUse before a database:\n",
+    "hints": [
+      "A positive result requires checking the exact store.",
+      "One bit can belong to multiple keys.",
+      "A diagram alone does not define T or all guarantees of a nonstandard filter."
+    ],
+    "review": [
+      "Explains why nonzero y positions mean only possibly present.",
+      "States conditions for no false negatives: correct insertion, no unsafe deletion and current state.",
+      "Counting deletion requires knowing insertion history and duplicate semantics.",
+      "Derives 111, 100, 000 for the stated strict threshold without inventing T.",
+      "Exact storage protects uniqueness/idempotency; rebuilding preserves concurrent writes."
+    ],
+    "answer": "At Θ=0 all queried positions are nonzero: possibly present, although y was not inserted. Shared hash positions cause a false positive. Standard filters store bits; counting filters store counters. Clearing bits on deletion can damage other keys. Counting filters can decrement counters if the key really was inserted and duplicate insertion semantics are respected. Deleting y merely because its query is positive can decrement other keys’ counters and cause false negatives. Prevent overflow/underflow and coordinate concurrent updates. Under the explicitly stated counter > Θ rule, (3,1,1) maps to 111, 100, 000 for Θ=0,1,3. Higher thresholds can reject inserted keys, so standard no-false-negative guarantees do not automatically apply. The diagram alone does not define the autoscaling variant or T. A negative lookup may bypass the database only when the filter is complete and current; fall back to the database when stale, rebuilding or uncertain. Positive results require exact checks. Filters cannot replace UNIQUE constraints or processed operation IDs. Rebuild with a consistent snapshot plus change capture or another lossless protocol, and monitor occupancy and false-positive rates.",
+    "origin": "Original exercise based on the user-provided interview diagram. The threshold formula is defined in the exercise; it is not a full specification of the pictured autoscaling variant.",
+    "source": [
+      "Redis · Bloom filter",
+      "https://redis.io/docs/latest/develop/data-types/probabilistic/bloom-filter/"
+    ]
+  },
+  "Q198": {
+    "title": "A Bloom filter says possibly present: can the key be deleted?",
+    "kind": "Theory · single choice",
+    "desc": "A counting Bloom filter returns positive for y. There is no other evidence y was inserted. Which action is safe?",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Check the exact store and insertion history first; a positive answer alone is insufficient for decrementing counters.",
+      "Decrement all y counters: a positive result proves membership.",
+      "Clear the corresponding bits: shared positions do not affect other keys.",
+      "Delete one random y position to reduce false positives."
+    ],
+    "answer": "A positive result can be a false positive. Deleting a key that was never inserted can damage other keys’ counters and cause false negatives. Safe counting deletion requires confirmed insertion and correct duplicate semantics; exact storage remains authoritative.",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Redis · Bloom filter",
+      "https://redis.io/docs/latest/develop/data-types/probabilistic/bloom-filter/"
+    ],
+    "origin": "Original question based on the user-provided Bloom filter diagram; not a verbatim interviewer question."
+  },
+  "A77": {
+    "title": "PostgreSQL: MVCC snapshots and table growth after UPDATE",
+    "desc": "In PostgreSQL, session R starts REPEATABLE READ and reads balance=100. W then updates it to 70 and commits. R repeats SELECT. Another table is heavily updated while a long transaction retains an old snapshot. Explain visibility and disk growth on paper, without running a database.",
+    "requirements": [
+      "Compare the second SELECT under READ COMMITTED and REPEATABLE READ for this schedule.",
+      "Separate MVCC, application optimistic concurrency and SELECT FOR UPDATE.",
+      "Explain when an old version can be removed and distinguish VACUUM, autovacuum, ANALYZE and VACUUM FULL.",
+      "Propose diagnostics and a safe remediation order for long transactions."
+    ],
+    "review": [
+      "RC takes a statement snapshot; RR retains the snapshot established by its first data query.",
+      "An active snapshot can still need an old tuple version; UPDATE creates a new version.",
+      "VACUUM is not an in-place UPDATE or a promise to return file space to the OS.",
+      "Observations are separated from hypotheses; VACUUM FULL is not prescribed blindly."
+    ],
+    "answer": "For this schedule, the second ordinary SELECT sees 70 under RC and 100 under RR. BEGIN alone does not establish the RR snapshot; the first data access matters. MVCC controls version visibility; xmin can be a concurrency token but does not define MVCC. SELECT FOR UPDATE separately locks rows. An UPDATE creates a new tuple version; an old version cannot be removed while snapshots still need it. Inspect transaction age, backend_xmin, dead tuples and autovacuum history. Ordinary VACUUM primarily makes internal space reusable; ANALYZE collects planner statistics. Autovacuum automates maintenance. VACUUM FULL rewrites the table, requires spare space and ACCESS EXCLUSIVE: use it only as a deliberate operational decision. Diagnose retained versions and maintenance lag before intervention. A conflicting write under RR may raise a serialization error; a stable snapshot does not guarantee every write can commit.",
+    "hints": [
+      "Draw R: SELECT → W: UPDATE/COMMIT → R: SELECT.",
+      "Which transaction can still see the old version?"
+    ],
+    "kind": "Practice · verbal review",
+    "cases": [],
+    "starter": "90-second answer:\n\nMechanism with an example:\n\nBoundaries and failures:\n\nVerification:\n",
+    "source": [
+      "PostgreSQL · Transaction isolation",
+      "https://www.postgresql.org/docs/current/transaction-iso.html"
+    ],
+    "origin": "Original exercise based on topics in the user-provided one-sided interview recording; interviewer questions are inferred.",
+    "references": [
+      [
+        "PostgreSQL · Routine vacuuming",
+        "https://www.postgresql.org/docs/current/routine-vacuuming.html"
+      ],
+      [
+        "PostgreSQL · MVCC",
+        "https://www.postgresql.org/docs/current/mvcc-intro.html"
+      ]
+    ]
+  },
+  "A78": {
+    "title": "PostgreSQL: from heap and B-tree to plans and row locks",
+    "desc": "Table events has id, tenant_id, created_at, status, payload and index (tenant_id, created_at). One tenant’s hourly query returns 0.1% of the table; an annual report returns 60%. Explain possible plans and row retrieval, then concurrent updates of id=42. Do not transfer SQL Server clustered-index mechanics to PostgreSQL.",
+    "requirements": [
+      "Separate logical rows, tuple versions, heap pages and index entries; explain index-to-heap references.",
+      "Compare Seq Scan, Index Scan, Bitmap Heap Scan and Index Only Scan without deciding solely from row percentages.",
+      "Discuss selectivity, statistics, buffers, actual/estimated rows and index maintenance costs.",
+      "Explain what SELECT FOR UPDATE locks and why an ordinary SELECT can still wait for DDL."
+    ],
+    "review": [
+      "Does not equate a PostgreSQL index with an automatically clustered heap.",
+      "Allows B-tree date ranges; uniqueness is not required for useful indexing.",
+      "Connects Index Only Scan to covered columns and the visibility map.",
+      "Distinguishes row/table locks, index internals and page latches."
+    ],
+    "answer": "Heap pages hold tuple versions; a B-tree is separate and stores keys and heap tuple references. Seq Scan reads the table sequentially; Index Scan follows keys to heap; bitmap plans group heap-page accesses. Index Only Scan can return indexed values, but visibility checks may still require heap fetches. Plans depend on selectivity, distribution, statistics, I/O costs, coverage and LIMIT, not just uniqueness. B-trees support date ranges. Compare real plans, rows/loops and buffers for narrow and broad ranges; EXPLAIN ANALYZE executes the query. PostgreSQL CLUSTER is a one-time physical reorder, not an automatically maintained clustered index. SELECT FOR UPDATE locks selected rows until transaction end and acquires table ROW SHARE; it does not lock the whole index. Ordinary SELECT acquires ACCESS SHARE, compatible with ordinary writes but conflicting with ACCESS EXCLUSIVE. Index Only Scan alone does not lock rows. Internal page latches are distinct from SQL row locks. Protect state transitions with a short transaction or conditional UPDATE and affected-row checks.",
+    "hints": [
+      "Follow key → index entry → heap tuple → MVCC visibility.",
+      "What changes when the predicate selects most rows?"
+    ],
+    "kind": "Practice · verbal review",
+    "cases": [],
+    "starter": "90-second answer:\n\nMechanism with an example:\n\nBoundaries and failures:\n\nVerification:\n",
+    "source": [
+      "PostgreSQL · Using EXPLAIN",
+      "https://www.postgresql.org/docs/current/using-explain.html"
+    ],
+    "origin": "Original exercise based on topics in the user-provided one-sided interview recording; interviewer questions are inferred.",
+    "references": [
+      [
+        "PostgreSQL · Index-only scans",
+        "https://www.postgresql.org/docs/current/indexes-index-only-scans.html"
+      ],
+      [
+        "PostgreSQL · Explicit locking",
+        "https://www.postgresql.org/docs/current/explicit-locking.html"
+      ],
+      [
+        "PostgreSQL · CLUSTER",
+        "https://www.postgresql.org/docs/current/sql-cluster.html"
+      ],
+      [
+        "PostgreSQL · Page layout",
+        "https://www.postgresql.org/docs/current/storage-page-layout.html"
+      ]
+    ]
+  },
+  "A79": {
+    "title": "Defend your experience: load, metrics and personal ownership",
+    "kind": "Practice · verbal review",
+    "desc": "Prepare a 90-second introduction and defend one real project. In the interview recording, a question about RPS is answered with an audience of about 150,000 users; event-delivery improvements are described through request counts and elapsed time. Clarify what was actually measured. Do not invent missing figures.",
+    "requirements": [
+      "Describe the product, your role, service boundaries and one personally delivered result.",
+      "Separate DAU, RPS, throughput, end-to-end latency, p95/p99 and error rates.",
+      "For the result, state baseline, change, workload, time window, measurement method and trade-offs.",
+      "Answer honestly when exact RPS or original measurements are unknown; propose verification."
+    ],
+    "cases": [],
+    "starter": "90-second introduction:\n\nOne example: problem → diagnosis → my change → result:\n\nKnown metrics and sources:\n\nUnknowns and verification:\n",
+    "hints": [
+      "The same business operation before and after a change does not guarantee equal load or conditions.",
+      "Audience size does not determine requests per second."
+    ],
+    "review": [
+      "Introduction fits 90 seconds and matches the role.",
+      "Personal ownership is separate from team outcomes.",
+      "Defines and sources available metrics without inventing values.",
+      "Explains comparison conditions and at least one trade-off."
+    ],
+    "answer": "Use: “I owned X in product Y; problem Z appeared this way; I changed A; we verified B; obtained C; the cost was D.” If a figure is unknown, say: “I do not remember exact peak RPS and will not derive it from user counts; I can describe the workload, bottleneck and measurement method.” DAU counts daily active users; RPS counts requests per second, with no fixed conversion. For replacing polling with events, separately measure network request counts and state-change-to-notification latency. Compare completed operations per time unit under comparable data, concurrency and infrastructure for throughput. Define latency boundaries and its distribution, not just averages. If baseline data is unavailable, give an honest qualitative outcome and a plan for recovering measurements. Discuss duplicates, ordering, consumer lag and observability. Do not present a practice benchmark as a production metric.",
+    "source": [
+      "Google SRE · Monitoring distributed systems",
+      "https://sre.google/sre-book/monitoring-distributed-systems/"
+    ],
+    "origin": "Original practice based on candidate answers in the interview recording at 04:23–13:34; interviewer wording is unknown."
+  },
+  "Q199": {
+    "title": "Is a Docker volume enough to recover Redis?",
+    "kind": "Theory · single choice",
+    "desc": "Redis is used as a cache. A persistent Docker volume is mounted at /data, but both RDB snapshots and AOF are explicitly disabled. The process crashes. What can be promised about recovering values?",
+    "requirements": [
+      "Choose one best answer."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Recovery is not guaranteed: a volume preserves files but does not write RAM. Configure RDB/AOF or safely rebuild the cache from its source.",
+      "A volume automatically persists all Redis RAM on every write.",
+      "TTL moves all values from RAM into /data before exit.",
+      "Replication and persistence are the same mechanism; any second replica guarantees no data loss."
+    ],
+    "answer": "A volume preserves files actually written to disk, not process memory. With RDB and AOF disabled, there are no persisted values to recover from that volume. For a rebuildable database cache, control cold-start load and coalesce requests rather than promising one warming request across all keys and replicas. RDB provides snapshots and AOF a write log; their configuration determines recovery cost and possible loss of recent writes. TTL, eviction, replication and persistence solve different problems.",
+    "review": [],
+    "hints": [],
+    "source": [
+      "Redis · Persistence",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    ],
+    "origin": "Original question based on Redis restart discussion at 26:16–26:52; not a verbatim interviewer question."
+  },
+  "A80": {
+    "title": "Billions of events: deduplication, partitioning and Bloom filters",
+    "kind": "Practice · verbal review",
+    "desc": "A practice consumer processes 3 billion events daily; an ID is 16 bytes. The same EventId can recur within 7 days, and money must not be debited twice. First-processing time can differ from event timestamp. Design exact deduplication with explicit costs and evaluate bitmaps and Bloom filters. These are exercise parameters, not a recovered interview specification.",
+    "requirements": [
+      "Clarify identical-ID semantics, replay horizon and retention clock.",
+      "Compute average throughput and raw-ID storage per day and per 7 days without overhead; do not infer peaks from averages.",
+      "Separate table partitioning, sharding across nodes and replication; explain routing and pruning.",
+      "Make dedup and business changes atomic, covering concurrent consumers and a lost response after commit.",
+      "Compare exact sets/stores, dense bitmaps and Bloom filters; explain why a positive Bloom result cannot discard a monetary event.",
+      "Estimate Bloom size for n=3e9 and p=0.001: m≈−n ln(p)/(ln 2)^2 bits, k≈(m/n)ln 2; describe correct updates and rebuilding."
+    ],
+    "cases": [],
+    "starter": "Questions and invariant:\n\nLoad and storage estimates:\n\nExact store, routing and retention:\n\nConcurrent consumers and crash windows:\n\nBitmap/Bloom role:\n\nVerification and metrics:\n",
+    "hints": [
+      "Uniqueness of (EventId,bucket) does not ensure EventId uniqueness across buckets.",
+      "Mapping UUIDs to bit positions is not free.",
+      "A filter can save lookups but cannot replace atomic side-effect protection."
+    ],
+    "review": [
+      "Computes ≈34.7k events/s, 48 GB raw IDs/day and 336 GB/7 days without inventing peak RPS.",
+      "Retention accounts for late replay, not just calendar days.",
+      "Repeated EventIds route consistently; partitioned-table uniqueness limits are addressed.",
+      "Dedup insert and side effect are atomic; uniqueness conflicts represent duplicates.",
+      "False positives and stale filters cause neither dropped new events nor duplicate debits.",
+      "One-day Bloom estimate is about 5.39 GB and k≈10; the full horizon is calculated separately."
+    ],
+    "answer": "3e9/86400≈34,722 events/s on average. Raw IDs require 48 GB/day or 336 GB/7 days, excluding timestamps, indexes, tuple overhead and replicas. Partitioning splits a logical table; sharding distributes ownership across nodes; replication copies data. Repeated IDs need deterministic routing. PostgreSQL partitioned-table unique constraints must include the partition key: UNIQUE(EventId,bucket) does not protect EventId across buckets. Mutable or late timestamps cannot blindly define the bucket from each retry’s arrival time; establish a stable routing contract or another exact uniqueness design. Store inbox and monetary changes atomically with uniqueness enforcement, acknowledge after commit, and use a separate idempotent protocol/outbox for external side effects. Bitmaps are exact for a defined dense ID universe; hashing arbitrary UUIDs into a small bitmap introduces collisions. At p=0.001, a one-day Bloom filter for 3e9 IDs needs about 43.13e9 bits, 5.39 GB (5.02 GiB), k≈10; seven days and rebuild overlap require additional capacity. Bloom is optional acceleration: possibly present requires an exact decision, never automatic rejection of a monetary event. Even a stale negative result cannot bypass UNIQUE and atomic inbox protection. Coordinate updates/rebuilds with commits; filter availability must not determine correctness. Cover concurrent duplicates, expired dedup records, incorrect timestamps, crashes after commit and filter outage.",
+    "source": [
+      "PostgreSQL · Table partitioning",
+      "https://www.postgresql.org/docs/current/ddl-partitioning.html"
+    ],
+    "references": [
+      [
+        "Redis · Bloom filter",
+        "https://redis.io/docs/latest/develop/data-types/probabilistic/bloom-filter/"
+      ],
+      [
+        "Apache Kafka · Design",
+        "https://kafka.apache.org/41/design/design/"
+      ]
+    ],
+    "origin": "Original scenario inspired by the one-sided recording around 38:00–46:00. Conditions and numbers are newly specified; interviewer questions are unknown."
+  },
+  "Q200": {
+    "title": "A bitmap for integer ID membership",
+    "kind": "Theory · multiple choice",
+    "desc": "Store exact membership of IDs in [0, 10,000,000). A standard bitmap assigns one bit per ID. Select every correct statement; only an exact set earns credit.",
+    "requirements": [
+      "Select every correct option; any missing correct or selected incorrect option means 0/100."
+    ],
+    "cases": [],
+    "starter": "",
+    "choices": [
+      "Membership is exact when the corresponding bit is updated correctly.",
+      "An ordinary bitmap uses memory only proportional to the number of set bits, regardless of the ID range.",
+      "The bits alone require 1,250,000 bytes, excluding alignment and object overhead.",
+      "Arbitrary sparse UUIDs cannot be promised the same budget without extra mapping or another structure.",
+      "An ordinary bitmap necessarily has false positives like a Bloom filter."
+    ],
+    "answer": "With direct ID-to-position mapping, a bitmap is exact: 10,000,000 bits / 8 = 1,250,000 bytes. An uncompressed bitmap is sized by its range even if only one bit is set. Bloom filters share hash positions across keys and allow false positives. Arbitrary UUIDs have no small dense range; a mapping needs storage and must not merge distinct IDs. Compressed bitmaps are separate structures whose cost depends on distribution.",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · BitArray",
+      "https://learn.microsoft.com/en-us/dotnet/api/system.collections.bitarray"
+    ],
+    "origin": "Original question based on bitmap discussion around 43:00–44:00 in the interview recording."
+  },
+  "A81": {
+    "title": "PostgreSQL: ON CONFLICT as an idempotent processing gate",
+    "kind": "Practice · SQL review",
+    "desc": "Two consumers concurrently process one EventId. processed_messages has PRIMARY KEY(event_id), accounts has PRIMARY KEY(id). Retries preserve the same amount and account_id by contract. Fix the algorithm: one database credit, duplicates are no-ops. Written review; SQL is not automatically executed.",
+    "review_code": "-- Statements currently run separately without a shared transaction.\nSELECT EXISTS (SELECT 1 FROM processed_messages WHERE event_id = :event_id);\n-- If false, the application continues:\nUPDATE accounts SET balance = balance + :amount WHERE id = :account_id;\nINSERT INTO processed_messages(event_id) VALUES (:event_id);\n-- The consumer then acknowledges the message.",
+    "requirements": [
+      "Show the race between two SELECTs and a crash after UPDATE.",
+      "Use INSERT ... ON CONFLICT (event_id) DO NOTHING RETURNING event_id; explain an empty result on duplicates.",
+      "Place the marker insert and UPDATE in one transaction; only the insert winner may update.",
+      "Check the affected accounts count; an unknown account must not leave a successful marker.",
+      "Explain a lost response after commit, ack ordering and DO NOTHING versus DO UPDATE."
+    ],
+    "cases": [],
+    "starter": "Prioritized findings:\n\nCorrected protocol/SQL:\n\nTwo consumers step by step:\n\nCrash windows and verification:\n",
+    "review": [
+      "Separate EXISTS checks are not treated as race protection.",
+      "Uniqueness is enforced in the database, not only consumer memory.",
+      "Duplicates never update balances; errors leave no false success marker.",
+      "An uncertain commit allows retry with the same ID; ack follows commit."
+    ],
+    "hints": [
+      "DO NOTHING does not return the existing row through RETURNING.",
+      "The transaction must include both markers and business data."
+    ],
+    "answer": "BEGIN; INSERT INTO processed_messages(event_id) VALUES (:event_id) ON CONFLICT (event_id) DO NOTHING RETURNING event_id; inspect the result. If one row was inserted, UPDATE accounts SET balance = balance + :amount WHERE id = :account_id RETURNING id; require exactly one row and COMMIT. Roll back on unknown accounts or failed business validation so no success marker remains. If the insert returns no rows, skip the balance update and finish as a no-op. A unique index resolves the race; a competing insert can wait for the first transaction. DO NOTHING avoids the expected unique-violation exception and does not return the conflicting existing row. DO UPDATE has different semantics and can accidentally repeat a side effect. After an uncertain commit, retry the same EventId: a committed marker suppresses repetition; a rolled-back attempt can execute again. Ack follows commit. A separate external debit is not made atomic by a PostgreSQL transaction; use an independent idempotent protocol. Cover concurrent duplicates, rollback after insert, unknown accounts and lost ack.",
+    "source": [
+      "PostgreSQL · INSERT / ON CONFLICT / RETURNING",
+      "https://www.postgresql.org/docs/current/sql-insert.html"
+    ],
+    "origin": "Original exercise based on ON CONFLICT difficulties around 48:00–50:59. Not verbatim interviewer code or wording."
+  },
+  "A82": {
+    "title": "One-million-RPS API: budget before architecture",
+    "desc": "A catalog normally receives 100k RPS and peaks at 1M RPS for ten minutes. Public reads are 90%; personalized writes are 10%. Mean response size is 4 KiB and mean end-to-end time is 200 ms. Edge serves 95% of public reads. Six backend engineers own the service. Design a minimal architecture and evolution without choosing storage from marketing benchmarks.",
+    "requirements": [
+      "Estimate peak bandwidth, origin request rate after edge and mean in-flight requests; distinguish mean latency from p99.",
+      "Separate cacheable reads, authorized reads and writes; define freshness and idempotency.",
+      "Identify a measurable bottleneck, headroom and cost; do not equate origin RPS with DB QPS or threads.",
+      "Define growth stages, replica/shard triggers, operating costs and rollback.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "Edge hit rate falls from 95% to 50%.",
+      "One tenant produces 40% of writes.",
+      "API scaling does not improve throughput."
+    ],
+    "review": [
+      "Derives 45k origin reads/s and 100k writes/s at 95% hit rate.",
+      "L=λW gives 200k in-flight system requests, not threads.",
+      "Covers bandwidth, write amplification and downstream limits.",
+      "Every added component has an adoption trigger, cost and rollback."
+    ],
+    "answer": "Peak uncompressed egress is 1e6×4096=4.096 GB/s≈32.8 Gbit/s. Edge leaves 45k reads/s plus 100k writes/s, or 145k origin requests/s. DB QPS depends on cache, fan-out and commands per request. Little’s law with mean W=0.2 s gives about 200k system-wide in-flight requests; p99 is not the mean. Put stateless APIs behind edge/gateway with explicit database and connection budgets. Exact storage enforces write uniqueness and idempotency; validate 100k writes/s against the real workload rather than a database label. Estimate bytes per operation, background writes and replication. Cost daily egress using the traffic profile rather than continuous peak. Bound origin load and degrade permitted features on cache failure. Scale the measured bottleneck; sharding adds routing and migration costs. Verify latency distributions, saturation, hit rates, business success and edge loss.",
+    "hints": [
+      "Write down units and time windows first."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Google SRE · Monitoring distributed systems",
+      "https://sre.google/sre-book/monitoring-distributed-systems/"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: capacity estimation / workload decomposition / reversible scaling. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A83": {
+    "title": "Subscription feed: ordinary authors versus 20 million followers",
+    "desc": "A social product has 50M accounts, 10M DAU and 30 posts/s on average. Ordinary authors have about 200 followers; the largest has 20M. A chronological feed should show posts within five seconds normally. Deleted/private posts must not be exposed to unauthorized readers. Design publishing and reads, including celebrity bursts.",
+    "requirements": [
+      "Compare write/read fan-out and a hybrid; estimate amplification and explain limitations of follower averages.",
+      "Define post IDs, subscriptions, materialized timelines and stable pagination cursors.",
+      "Propagate deletion and permission changes through caches/queues without trusting stale ID lists.",
+      "Bound backlog, redelivery, feed rebuilding and celebrity costs.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "A celebrity publishes ten posts in a row.",
+      "A post becomes private while deletion propagation lags by one minute.",
+      "A worker reprocesses a publication after crashing."
+    ],
+    "review": [
+      "The hybrid follows workload skew rather than copying a company design.",
+      "Retries do not duplicate entries; cursors include tie-breakers.",
+      "Reads enforce permissions and stale caches do not expose private posts.",
+      "Freshness, fan-out lag and degradation bounds are explicit."
+    ],
+    "answer": "Atomically persist posts and publication intent; idempotent workers populate ordinary followers’ timelines. At a conditional 200 followers, 30 posts/s means about 6,000 inserts/s, not a celebrity-burst forecast. Keep large authors’ streams and merge them with materialized timelines on reads; determine thresholds from measured cost. Order by (created_at,post_id), with merge-aware cursors and deduplication. Bound home timelines and keep older history durable. A sorted set can accelerate retrieval but is not the only copy of posts or permissions. Hydration must enforce current access; strict revocation needs coordinated authoritative checks rather than promises of instant invalidation. Isolate expensive fan-out and budget its delay. Verify replay, deletion-before-fan-out, concurrent subscriptions, equal timestamps and feed-age metrics.",
+    "hints": [
+      "Average follower counts hide the most expensive publications."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Redis · Sorted sets",
+      "https://redis.io/docs/latest/develop/data-types/sorted-sets/"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 41–42 / news feed / skewed fan-out. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A84": {
+    "title": "Up to 50 GiB files: resumable uploads and safe publication",
+    "desc": "A B2B service accepts files up to 50 GiB with up to 2,000 open upload sessions. Clients lose connectivity and retry finalize. Files become accessible only after complete upload and verification. Tenant isolation is mandatory. Design control/data planes without proxying every byte through application replicas.",
+    "requirements": [
+      "Define upload sessions, scoped temporary authorization, parts, checksums, finalize and abort.",
+      "Coordinate database and object-store state without a shared transaction; make finalize/callback retries safe.",
+      "Verify actual size/integrity and quarantine/ready access.",
+      "Estimate active parts, bandwidth, temporary storage, abandoned-upload cleanup and cost.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "The object is assembled but the complete response is lost.",
+      "A callback arrives twice and before the database update.",
+      "Another tenant substitutes somebody else’s object key."
+    ],
+    "review": [
+      "Temporary authorization is limited by tenant, key, operation and expiry.",
+      "Ready means verified; a callback alone is insufficient evidence.",
+      "Sessions/transitions are idempotent and partial uploads are cleaned up.",
+      "A client timeout does not force all 50 GiB to be uploaded again."
+    ],
+    "answer": "Authorize the tenant, create a session and random object key, then grant short-lived multipart permissions. Clients upload directly and retry missing parts. Persist a manifest and initiated→uploaded→verifying→ready/failed states, plus abort/expiry. Finalize checks upload identity, expected parts and actual storage state; after an uncertain completion inspect the existing object before creating another. Events are repeatable signals; reconciliation repairs transitions after crashes. Keep quarantine private and publish only after explicit integrity, size and required checks. Object keys do not replace authorization. A multipart ETag is not universally an MD5; choose an explicit checksum contract. Bound concurrent parts and verification resources, and expire abandoned uploads/orphans. Direct uploads save API bandwidth at the cost of scoped authorization, a state machine and reconciliation. Verify lost completion, repeated callbacks, cross-tenant keys and stalled verification.",
+    "hints": [
+      "Database commits, object completion and completion events do not share a transaction."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "AWS S3 · Multipart upload",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 43 / resumable large-file upload / HLD storage. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A85": {
+    "title": "Catalog search: stale indexes, deletion and reindexing",
+    "desc": "A catalog has 30M products, up to 15k searches/s and 2k changes/s. PostgreSQL is authoritative; search should normally update within ten seconds. Checkout rechecks price and purchase authorization. Deleted/private items must not expose private data. Design the search projection and rebuild process.",
+    "requirements": [
+      "Define search requirements and a minimal baseline before introducing another engine; model indexes and tenant filtering.",
+      "Handle replay, version reordering, deletes, delayed updates and reindexing.",
+      "Rebuild without losing concurrent changes; define index-generation switching and rollback.",
+      "Separate search freshness from authoritative pricing/access and define index-outage behavior.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "Delete v12 is processed before delayed update v11.",
+      "Reindex finishes before its CDC backlog catches up.",
+      "Cached search results retain a private product."
+    ],
+    "review": [
+      "The index is not authoritative for charging or access.",
+      "Late events cannot resurrect deleted objects after tombstone GC.",
+      "Alias/generation switching follows watermark and completeness checks.",
+      "Measures indexing lag, search quality/latency and safe degradation."
+    ],
+    "answer": "Start with access patterns and PostgreSQL measurements; justify a separate engine by search/ranking and load. Use outbox/CDC with stable IDs and monotonic object versions. Reject old versions. External versioning helps ordering, but delete markers can expire: arbitrary late replay requires durable tombstone/version tracking or a bounded replay horizon and rebuild protocol. Build a new generation from a consistent snapshot, catch up changes, verify watermarks/counts/samples and atomically switch aliases; keep rollback generations updated. Enforce tenant/access at serving time; strict privacy needs authoritative validation or fail-closed behavior, not stale index flags. Recheck purchase price/availability at the source. Permit bounded stale results or a constrained fallback, not unlimited full-table queries on search outage. Verify reorder, deletion GC, concurrent rebuild and cache leakage.",
+    "hints": [
+      "An atomic alias switch does not prove the preceding load is complete."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Elasticsearch · External versioning",
+      "https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-index"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 44 / search projection / GFG data consistency. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A86": {
+    "title": "Distributed rate limiter: tenant quotas and Redis failure",
+    "desc": "Twenty API replicas serve tenants. The contract is a per-tenant token bucket with 100 tokens/s refill, capacity 200 and cost one per request. Separately, at most ten expensive operations may be active per tenant. Replica count varies. Choose global accuracy and coordination-store failure behavior.",
+    "requirements": [
+      "Separate rate budgets and concurrent permits; derive the token-bucket envelope.",
+      "Make refill/check/decrement atomic and define time source, state TTL and quota identity.",
+      "Compare centralized decisions, local budgets and leased tokens; quantify overshoot.",
+      "Choose fail-open, fail-closed or bounded local fallback per endpoint, including 429/Retry-After.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "Each replica independently grants a burst of 200.",
+      "Redis times out after possibly consuming a token.",
+      "A client spoofs tenant/IP headers or generates millions of keys."
+    ],
+    "review": [
+      "Does not promise global burst 200 from twenty independent buckets.",
+      "State and expiry updates have no INCR/EXPIRE race.",
+      "Rate and active-operation limits are independent.",
+      "Defines over-admission bounds, outage and recovery."
+    ],
+    "answer": "A full bucket admits at most 200+100t requests over t seconds, not exactly 100 per fixed window. Atomically refill/check/consume with an appropriate script or transactional mechanism. Use an explicit time source and TTL long enough for complete refill; prematurely resetting state grants another burst. Fixed-window INCR has different semantics and boundary bursts. Twenty independent buckets permit up to 4,000 immediate requests. Token leasing bounds overshoot by outstanding allowances but needs expiry/reissue rules. Active-operation limits are separate; lease expiry does not stop an old worker. After a timeout, consumption is uncertain: conservative rejection loses capacity, while identified retries require deduplication. Validate tenant identity and bound key cardinality. Verify burst boundaries, autoscaling, store failure and fairness.",
+    "hints": [
+      "Accuracy and availability are explicit limiter contracts."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Redis · INCR and rate limiter pattern",
+      "https://redis.io/docs/latest/commands/incr/"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 37 / GFG rate limiting / distributed admission. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A87": {
+    "title": "Multi-region wallet: network partitions and one writer",
+    "desc": "A wallet service serves two regions with 90 ms RTT. Confirmed debits must survive loss of either region and balances must remain nonnegative. Another requirement says both regions must always accept writes. Propose a feasible contract and evolution from one region, explicitly challenging incompatible expectations.",
+    "requirements": [
+      "Define write ownership, quorum/replication and acknowledgement; separate RPO/RTO.",
+      "Trace a network partition, stalled old primary and standby promotion.",
+      "Fence stale writers and preserve ledger/idempotency; DNS or lease TTL alone is insufficient.",
+      "Compare one writer, coordinated distributed writes and bounded escrow rights; scope eventual reads separately.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "The old region loses coordinator connectivity but still accepts clients.",
+      "The synchronous replica is unavailable and latency budget is 50 ms.",
+      "A request with a lost response is retried after failover."
+    ],
+    "review": [
+      "Explicitly identifies impossible latency/availability/RPO combinations.",
+      "ACK follows required durability and old writers are effectively fenced.",
+      "Independent regions cannot spend the same shared balance.",
+      "Includes staged migration, fault drills and safe rollback criteria."
+    ],
+    "answer": "RPO=0 for loss of a region requires the confirmed change to be durable outside that region before ACK and correct new-writer selection. A 90 ms inter-region RTT conflicts with a 50 ms synchronous acknowledgement budget unless geography or contract changes. A baseline is one wallet owner, synchronous durable replication and coordinated fenced failover; the side without quorum stops monetary writes. Async replication alone cannot prove zero loss. DNS reroutes clients but does not disable old writers. Enforce ownership epochs at a coordinated mutation boundary; checking an isolated stale local epoch is not fencing. Alternatively physically isolate old nodes. Active-active needs coordinated writes or preallocated independent spending rights with a proven aggregate bound; last-write-wins is unsafe for balances. Replicate ledger and idempotency together; reconcile uncertain commits by operation ID. Permit stale noncritical reads separately. Migrate through standby validation, failover drills and limited traffic; reestablish one writer before rollback. Measure confirmed-operation loss, RTO, rejection and p99.",
+    "hints": [
+      "A timeout alone cannot distinguish a dead region from an isolated one."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "PostgreSQL · Failover and fencing",
+      "https://www.postgresql.org/docs/current/warm-standby-failover.html"
+    ],
+    "references": [
+      [
+        "PostgreSQL · Synchronous replication",
+        "https://www.postgresql.org/docs/current/warm-standby.html"
+      ],
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 24–28 / GFG leader failure / multi-region ownership. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A88": {
+    "title": "Queue recovery: drain time and protection of critical traffic",
+    "desc": "An outage leaves 28.8M tasks. New work arrives at 12k/s; the fleet sustainably completes 20k/s under the current downstream limit. Payloads are 2 kB (2,000 bytes), excluding replicas/indexes. Monetary tasks cannot be lost; analytics may be aggregated. Monetary-task age SLO is five minutes. Design recovery and overload policy.",
+    "requirements": [
+      "Compute ideal drain time with ongoing arrivals and minimum backlog bytes.",
+      "Analyze arrivals rising to 22k/s and consumer scaling limited by shared downstream.",
+      "Separate priorities/budgets, bounded admission, retries, DLQ and per-key order.",
+      "Define preacceptance rejection, durability after ACK and age-SLO detection.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "Adding workers slows the database and reduces completion.",
+      "Retries double attempts rather than successful operations.",
+      "Priority processing starves analytics."
+    ],
+    "review": [
+      "Derives 3,600 seconds using net capacity; 22k/s arrivals grow the queue.",
+      "Does not promise immediate five-minute SLO recovery without changing policy/capacity.",
+      "Acknowledged monetary work is not discarded to reduce depth.",
+      "Includes age/fairness, retry budgets and measurable recovery goals."
+    ],
+    "answer": "Net drain is 20−12=8k/s, yielding 28.8M/8k=3,600 seconds. Raw payloads occupy 57.6 GB before replication and overhead. At 22k arrivals/s backlog grows by 2k/s; buffering cannot fix permanent capacity shortage. These estimates assume constant rates and equal task cost; validate age distributions and workload mix. Isolate monetary work from aggregatable analytics, reserve capacity and preserve fairness. Bound overload before durable ACK with a clear retry/rejection contract; accepted monetary work must finish or enter explicit reconciliation. Scale only with database/provider and partition headroom; bound concurrency, retries and attempt duration. DLQ handling must not silently violate financial-key ordering. Recovery may need reduced admission, higher sustainable capacity or revised SLOs; priority alone is insufficient. Monitor oldest/percentile age, successful completions, retry amplification, saturation and starvation.",
+    "hints": [
+      "Count successful completions, not worker attempts."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Google SRE · Handling overload",
+      "https://sre.google/sre-book/handling-overload/"
+    ],
+    "references": [
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 29–33,46–48 / backlog recovery / graceful degradation. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A89": {
+    "title": "Replicas and a hot tenant: fresh reads and shard migration",
+    "desc": "A PostgreSQL SaaS has one tenant generating 45% of requests and replica lag varying from zero to eight seconds. Users must immediately see their own changes; reports tolerate 30 seconds of delay. The team proposes hash(tenant_id)%N and growing N from four to five. Design read routing and safe redistribution.",
+    "requirements": [
+      "Separate user read-after-write from stale reports; explain why fixed pinning time cannot guarantee freshness.",
+      "Compare tenant directories, virtual buckets and modulo; analyze hot tenants and multi-shard queries.",
+      "Describe snapshot/change capture, validation, cutover, old-owner fencing and migration rollback.",
+      "Define which constraints/transactions remain local and measure lag, skew and migration cost.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "The user reads from another device or API replica.",
+      "A stale router sends a write to the former owner during cutover.",
+      "One tenant remains a single hot key after adding nodes."
+    ],
+    "review": [
+      "Routes fresh reads using primary/verified visibility, not sleep alone.",
+      "Does not claim consistent hashing splits one hot key.",
+      "Cutover uses versioned routing/ownership without unsafe dual writes.",
+      "Covers query fan-out, tenant isolation and rollback after new writes."
+    ],
+    "answer": "Route read-after-write operations to the primary or use a commit-linked watermark already replayed by the selected replica. Fixed pinning time is a heuristic because lag can exceed it. Freshness context must survive replica/device changes as required. Reports may use replicas within controlled staleness. Modulo N changes many placements when N changes; directories/virtual buckets reduce movement and provide versioned ownership but do not migrate data themselves. One indivisible tenant remains hot; access-pattern-based subsharding adds query fan-out and transaction limits. Migrate with snapshot, change capture, validation, controlled old-write drain, watermark catch-up and fenced owner-epoch cutover. Blind dual writes are not atomic; rollback after new writes needs reverse synchronization. Measure rows/bytes, lag, skew, cross-shard fan-out and read-your-writes failures.",
+    "hints": [
+      "Placement, data movement and write ownership are distinct."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "PostgreSQL · Streaming replication",
+      "https://www.postgresql.org/docs/current/warm-standby.html"
+    ],
+    "references": [
+      [
+        "AWS DynamoDB · Partition-key design",
+        "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"
+      ],
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: Medium 15–20,23 / GFG sharding and consistent hashing. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "A90": {
+    "title": "API gateway: discovery, trusted headers and retry storms",
+    "desc": "A gateway fronts twelve ASP.NET Core services. Replicas change during rollouts, some clients keep long connections, and gateway/HTTP clients independently retry. Backends receive tenant/user headers that external clients can also send. Design routing, trust boundaries and isolation from one failed dependency.",
+    "requirements": [
+      "Separate reverse proxying, load balancing, discovery and domain authorization; define route sources/configuration updates.",
+      "Handle stale endpoints, readiness, draining, keep-alive and long connections.",
+      "Define end-to-end deadlines, retry budgets and eligible operations; calculate nested retry amplification.",
+      "Secure forwarded/identity headers, direct backend access and per-service resource isolation.",
+      "Provide APIs, a data model, flow diagram, estimates and a verification plan. This is written/verbal system design: infrastructure is not automatically executed and the rubric is self-assessment."
+    ],
+    "cases": [
+      "Two retry layers each make three attempts.",
+      "Discovery fails while some endpoints have been removed.",
+      "A client supplies arbitrary X-Forwarded-For and X-Tenant-Id."
+    ],
+    "review": [
+      "Three attempts at each of two layers yield up to nine backend attempts, not six.",
+      "One dependency cannot consume all connections or deadlines.",
+      "Gateway authentication does not replace service object/tenant authorization.",
+      "Tests routing, draining and spoofing without instant-failure-detection claims."
+    ],
+    "answer": "The gateway performs L7 routing from controlled configuration; discovery updates endpoint sets with possible lag. Bound last-known-good routes and exclude unready nodes; health checks do not guarantee the next request succeeds. Stop new admission before draining with deadlines; existing streams/WebSockets do not migrate automatically. Isolate dependency pools and limits. Propagate remaining deadlines/cancellation and designate retry ownership or a shared budget. Three attempts at each of two layers yield nine downstream attempts, not their sum. POST retries require suitable idempotency; a lost response leaves side effects uncertain. Strip/replace external identity headers, authenticate forwarded principals and prevent unauthorized direct backend access. Accept ASP.NET Core forwarded headers only from trusted proxies; keep tenant/object authorization in each service. Verify stale discovery, draining, configuration rollback, spoofing and dependency blast radius.",
+    "hints": [
+      "The gateway has its own failure and configuration boundary."
+    ],
+    "kind": "System design · scenario",
+    "starter": "Requirements and assumptions:\n\nLoad and resource budget:\n\nAPIs and data model:\n\nDiagram and main path:\n\nConcurrency and failures:\n\nAlternatives, cost and evolution:\n\nVerification and metrics:\n",
+    "source": [
+      "Azure Architecture · Gateway Routing",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/gateway-routing"
+    ],
+    "references": [
+      [
+        "Microsoft · Proxy/load-balancer configuration",
+        "https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-10.0"
+      ],
+      [
+        "GeeksforGeeks · topic collection",
+        "https://www.geeksforgeeks.org/system-design/top-10-system-design-interview-questions-and-answers/"
+      ],
+      [
+        "Devrim Ozcay · discussion prompts",
+        "https://devrimozcay.medium.com/system-design-interview-questions-50-senior-staff-level-questions-and-answers-for-2026-6388a4450b12"
+      ]
+    ],
+    "origin": "Original practice scenario: GFG HLD 34–38,49–52 / gateway, discovery and reverse proxy. Topics were compared with the supplied collections; constraints, figures and explanation are newly authored, not a real product architecture."
+  },
+  "C48": {
+    "title": "NUnit: HTTP retries, cancellation and ownership",
+    "desc": "Write Verify(fetch) with NUnit 4.3.2 and FakeHandler. Contract: GET relative resource; 2xx returns the exact body; only HTTP 503 retries, at most three total attempts with no delays. Other non-2xx and the third 503 throw HttpRequestException. A precanceled token throws OperationCanceledException or a subtype without invoking the handler. The caller owns HttpClient. No real network is used.",
+    "requirements": [
+      "Use a fake-handler HttpClient with BaseAddress; return a new response per attempt.",
+      "Cover 503→200, 503→503→200, three 503s with a potential fourth 200, 400→200 and the exact body.",
+      "Test a precanceled token: exception type/subtype and zero handler calls.",
+      "Reuse the same client after a successful fetch; it must still work.",
+      "Verify must pass correct code and detect every defect. An exception from Verify (NUnit assertion or an unexpected error) detects a defect; NotImplementedException does not count. Full success requires every control case to pass. If the tests reject correct code, defect detection earns no credit. Do not inspect delegate.Method/implementation types or change provided contracts. This is self-practice, not a tamper-proof exam."
+    ],
+    "review": [
+      "Checks output and call counts rather than merely no exception.",
+      "The third-503 case exposes excess retries.",
+      "Accepts OperationCanceledException and subtypes.",
+      "Test clients/responses have clear ownership; no sleeps or network."
+    ],
+    "answer": "Separate scenarios using fresh handlers/clients. A fake can consume statuses from an array and return new responses with a distinctive body. For 503,200 expect the second body and two calls; for 503,503,200 expect three. For 503,503,503,200 require HttpRequestException and three calls so a fourth attempt cannot hide the defect. For 400,200 require one call and HttpRequestException. Assert captured errors instead of swallowing them. Precancellation requires OperationCanceledException or a subtype and zero calls. Fetch twice with the same successful client to expose internal disposal. NUnit is pinned to 4.3.2: its Assert.ThrowsAsync is not awaited, unlike NUnit 5; explicit try/catch plus Assert.That on the error also works. These checks do not prove in-flight cancellation, backoff, network failures or POST retry safety.",
+    "hints": [
+      "The fake supplies observable responses; do not inspect the internal loop.",
+      "A possible fourth success exposes excess attempts."
+    ],
+    "kind": "Testing · write the tests",
+    "cases": [
+      "Correct HTTP behavior",
+      "Detects retry of 400",
+      "Detects only two attempts",
+      "Detects a fourth attempt",
+      "Detects ignored cancellation",
+      "Detects swallowed cancellation",
+      "Detects substituted response body",
+      "Detects disposal of caller-owned client"
+    ],
+    "starter": "using System.Net;\nusing NUnit.Framework;\n\npublic sealed class FakeHandler(\n\tFunc<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond) : HttpMessageHandler\n{\n\tpublic int Calls { get; private set; }\n\tprotected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)\n\t{\n\t\tCalls++;\n\t\treturn respond(request, ct);\n\t}\n}\n\npublic static class Kata\n{\n\tpublic static async Task Verify(Func<HttpClient, CancellationToken, Task<string>> fetch)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "NUnit · Async assertions, including NUnit 4 semantics",
+      "https://docs.nunit.org/articles/nunit/writing-tests/assertions/classic-assertions/Assert.ThrowsAsync.html"
+    ],
+    "origin": "Original mutation-style kata: the learner writes behavior checks. The harness invokes Verify directly; there is no separate NUnit discovery/test runner.",
+    "related": [
+      "T08",
+      "Q055",
+      "C37",
+      "A114"
+    ]
+  },
+  "C49": {
+    "title": "NUnit: absolute TTL without Sleep",
+    "desc": "Write Verify(create). Each new ITtlStore uses the supplied TimeProvider; keys/values are non-null, TTLs positive and calls sequential. Put overwrites the value and expiry. Get returns a value exactly when now < putTime+ttl, otherwise null. Reads do not extend TTL; expiring one key must not delete others. ManualClock advances time without waiting.",
+    "requirements": [
+      "Check one tick before expiry, exactly at expiry and afterward.",
+      "Read halfway through TTL, then check the original deadline to distinguish absolute from sliding expiration.",
+      "Use keys with different deadlines and overwrite an existing key with a new value/TTL.",
+      "Create a new clock/store per scenario; avoid system time, sleeps and delays.",
+      "Verify must pass correct code and detect every defect. An exception from Verify (NUnit assertion or an unexpected error) detects a defect; NotImplementedException does not count. Full success requires every control case to pass. If the tests reject correct code, defect detection earns no credit. Do not inspect delegate.Method/implementation types or change provided contracts. This is self-practice, not a tamper-proof exam."
+    ],
+    "review": [
+      "Uses controlled time only.",
+      "Enforces strict now < deadline.",
+      "Checks independent keys and replacement semantics.",
+      "Does not mandate storage internals or eager/lazy cleanup."
+    ],
+    "answer": "Create a clock/store and a key with a ten-second TTL. At ten seconds minus one tick it must exist; one tick later it must be absent. Use a separate scenario to read halfway through and still expire at the original deadline. Put a second key with twenty seconds TTL, expire/read the first and verify the second remains. Overwrite a key after partial time with a new value/TTL and check both replacement value and deadline. Missing keys return null. Do not compare wall-clock time or assert internal entry counts: eager/lazy eviction are both valid. ManualClock only overrides GetUtcNow; it does not drive timers, so this kata does not verify background cleanup or TimeProvider-based Task.Delay.",
+    "hints": [
+      "Advancing time and observing the result are separate test steps."
+    ],
+    "kind": "Testing · write the tests",
+    "cases": [
+      "Correct absolute TTL",
+      "Detects inclusive expiration boundary",
+      "Detects expiration before deadline",
+      "Detects sliding instead of absolute TTL",
+      "Detects ignored injected clock",
+      "Detects expiration of unrelated keys",
+      "Detects ignored overwrite"
+    ],
+    "starter": "using NUnit.Framework;\n\npublic interface ITtlStore\n{\n\tvoid Put(string key, string value, TimeSpan ttl);\n\tstring? Get(string key);\n}\n\npublic sealed class ManualClock : TimeProvider\n{\n\tprivate DateTimeOffset now = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);\n\tpublic override DateTimeOffset GetUtcNow() => now;\n\tpublic void Advance(TimeSpan delta)\n\t{\n\t\tif (delta < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(delta));\n\t\tnow += delta;\n\t}\n}\n\npublic static class Kata\n{\n\tpublic static void Verify(Func<TimeProvider, ITtlStore> create)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "Microsoft · TimeProvider",
+      "https://learn.microsoft.com/en-us/dotnet/standard/datetime/timeprovider-overview"
+    ],
+    "origin": "Original mutation-style kata: the learner writes behavior checks. The harness invokes Verify directly; there is no separate NUnit discovery/test runner.",
+    "related": [
+      "C37",
+      "Q068",
+      "Q194",
+      "A114"
+    ]
+  },
+  "C50": {
+    "title": "NUnit: sorting properties and input preservation",
+    "desc": "Write Verify(sort) for a total int[] sorting function. Inputs are non-null and all int values are valid. Output is non-null, ascending and preserves length/multiplicities. Input must remain unchanged. Empty input is valid. Already sorted input may be returned directly: a separate output object is not required. Combine examples and property checks.",
+    "requirements": [
+      "Cover empty, singleton, unsorted input, duplicates, negatives and int.MinValue/int.MaxValue.",
+      "Snapshot before calling; independently verify order, multiset and unchanged input.",
+      "Use several deterministic inputs or fixed-seed Random, never an uncontrolled seed.",
+      "Do not demand a particular algorithm, comparison count or new output instance.",
+      "Verify must pass correct code and detect every defect. An exception from Verify (NUnit assertion or an unexpected error) detects a defect; NotImplementedException does not count. Full success requires every control case to pass. If the tests reject correct code, defect detection earns no credit. Do not inspect delegate.Method/implementation types or change provided contracts. This is self-practice, not a tamper-proof exam."
+    ],
+    "review": [
+      "Checks multiplicities rather than only a distinct set.",
+      "Takes the snapshot before invoking to expose mutation.",
+      "Accepts empty input and all int values without comparator overflow.",
+      "Does not introduce an unstated fresh-object requirement."
+    ],
+    "answer": "For each input, snapshot xs.ToArray() before calling sort. Assert non-null output, equal length, adjacent nondecreasing values, matching value→count groups and unchanged input. Compare values directly, not via subtraction that can overflow. Include empty/singleton arrays, [3,1,3,-2], extremes with duplicate zeros, ordered and reversed input. Fixed-seed generated data supplements boundary examples; a small value range increases duplicates. Idempotence alone is insufficient because Distinct is also idempotent. Permutation-based metamorphic checks complement rather than replace multiset checks. Do not require a new reference: a correct implementation may reuse already sorted input.",
+    "hints": [
+      "Is.EquivalentTo checks multiplicities; HashSet equality does not."
+    ],
+    "kind": "Testing · write the tests",
+    "cases": [
+      "Correct LINQ sort",
+      "Correct copied array sort",
+      "Correct sort may reuse an already sorted input",
+      "Detects unchanged unsorted output",
+      "Detects removed duplicates",
+      "Detects dropped element",
+      "Detects descending order",
+      "Detects changed input",
+      "Detects failure on empty input",
+      "Detects loss of extreme values"
+    ],
+    "starter": "using NUnit.Framework;\n\npublic static class Kata\n{\n\tpublic static void Verify(Func<int[], int[]> sort)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "NUnit · Collection constraints",
+      "https://docs.nunit.org/articles/nunit/writing-tests/constraints/CollectionEquivalentConstraint.html"
+    ],
+    "origin": "Original mutation-style kata: the learner writes behavior checks. The harness invokes Verify directly; there is no separate NUnit discovery/test runner."
+  },
+  "C51": {
+    "title": "NUnit + SQLite: prove rollback after a partial change",
+    "desc": "Write Verify(transfer) using real in-memory SQLite. Schema: accounts(id INTEGER PRIMARY KEY, balance INTEGER NOT NULL CHECK(balance BETWEEN 0 AND 100)); ledger(id TEXT PRIMARY KEY). The operation transfers ten from account 1 to account 2 and inserts ledger ID transfer-1 in one transaction. Both account rows exist. Constraint violations must propagate SqliteException with full rollback. The test owns the open connection. Debit/credit order inside the transaction is unspecified.",
+    "requirements": [
+      "Use a fresh Data Source=:memory: connection and schema per scenario; do not wrap transfer in an outer test transaction.",
+      "Success: balances 50/20 become 40/30 with exactly one transfer-1 row.",
+      "CHECK failure: balances 50/100 and empty ledger. After SqliteException balances and empty ledger remain unchanged.",
+      "UNIQUE failure: balances 50/20 with an existing transfer-1. After SqliteException both balances and the original ledger row remain unchanged.",
+      "Check State=Open after calls; do not mock SQL commands/connections or use a shared static database.",
+      "Verify must pass correct code and detect every defect. An exception from Verify (NUnit assertion or an unexpected error) detects a defect; NotImplementedException does not count. Full success requires every control case to pass. If the tests reject correct code, defect detection earns no credit. Do not inspect delegate.Method/implementation types or change provided contracts. This is self-practice, not a tamper-proof exam."
+    ],
+    "review": [
+      "Triggers a real constraint failure after a possible write.",
+      "Checks stored state rather than only an exception.",
+      "The happy path prevents an always-fail implementation from passing.",
+      "Isolates data/lifecycle; outer rollback cannot mask production defects."
+    ],
+    "answer": "Create a helper opening a fresh in-memory SQLite database and the specified schema; keep the connection alive through assertions. Verify balances and ledger on the 50/20 happy path. With 50/100, one update may succeed before CHECK rejects the credit: require SqliteException, unchanged balances and no ledger row. Preinsert transfer-1 for UNIQUE failure so an error can follow both updates; verify all state rolls back. Accept either correct debit/credit order rather than asserting internal SQL order. Do not use an outer test transaction: it can hide missing transaction handling or break the contract. NUnit 4.3.2 Assert.ThrowsAsync is synchronous; explicit try/catch plus Assert.That also works. This real-provider exercise proves its SQLite contract, not PostgreSQL locking/MVCC or a real payment integration.",
+    "hints": [
+      "Check every mutated table on failure.",
+      "SQLite :memory: lives until its connection closes."
+    ],
+    "kind": "Testing · write the tests",
+    "cases": [
+      "Correct atomic transfer",
+      "Correct credit-first atomic transfer",
+      "Detects partial commit without transaction",
+      "Detects swallowed constraint failure",
+      "Detects omitted destination credit",
+      "Detects omitted ledger insert",
+      "Detects unconditional failure",
+      "Detects closing caller-owned connection"
+    ],
+    "starter": "using Microsoft.Data.Sqlite;\nusing NUnit.Framework;\n\npublic static class Kata\n{\n\tpublic static async Task Verify(Func<SqliteConnection, Task> transfer)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "Microsoft · SQLite transactions",
+      "https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions"
+    ],
+    "origin": "Original mutation-style kata: the learner writes behavior checks. The harness invokes Verify directly; there is no separate NUnit discovery/test runner."
+  },
+  "Q201": {
+    "title": "Is checking a preview URL hostname before fetching sufficient against SSRF?",
+    "choices": [
+      "No: control destinations, DNS/IP results, redirect hops and actual connectivity, with restricted egress.",
+      "Yes: any HTTPS URL is safe after hostname string validation.",
+      "Yes: CORS prevents server access to internal addresses.",
+      "Blocking the literal string localhost is sufficient."
+    ],
+    "answer": "Redirects, IPv6, multiple DNS results and resolution/connect races can bypass string filters. URL validation does not replace connection and network controls.",
+    "desc": "Is checking a preview URL hostname before fetching sufficient against SSRF?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "OWASP · SSRF prevention",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q202": {
+    "title": "With CORS allowing only trusted.example, can the server treat all other clients as unauthorized?",
+    "choices": [
+      "Yes: curl and backend clients must enforce CORS.",
+      "No: CORS controls browser response access; authentication, authorization and CSRF protections are separate.",
+      "Yes: requests without preflight never reach the server.",
+      "Yes: Origin replaces object authorization."
+    ],
+    "answer": "CORS is browser-enforced and some requests can be sent without permission to read their responses. It is not server-side access control.",
+    "desc": "With CORS allowing only trusted.example, can the server treat all other clients as unauthorized?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "MDN · CORS",
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q203": {
+    "title": "How can production be tied to the exact artifact validated on staging?",
+    "choices": [
+      "Rebuild the commit with latest dependencies and assume identical output.",
+      "Treat the latest tag as content proof.",
+      "Promote one validated immutable digest, linked to source and checks; evaluate environment configuration separately.",
+      "Compare only workflow run numbers."
+    ],
+    "answer": "Identical source does not guarantee identical builds. Digests identify bytes; provenance and checks establish traceability without proving configuration correctness.",
+    "desc": "How can production be tied to the exact artifact validated on staging?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "GitHub · Deployment environments",
+      "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q204": {
+    "title": "A pull_request_target job has secrets and executes a PR-head script. What is the risk?",
+    "choices": [
+      "Checkout makes the code trustworthy.",
+      "Log masking guarantees no exfiltration.",
+      "Only public repositories are affected; fork code is safe.",
+      "Untrusted code runs in a privileged context; isolate PR validation from secrets and deployment capabilities."
+    ],
+    "answer": "Event context and permissions define the trust boundary. Masking does not prevent network exfiltration or make untrusted code safe.",
+    "desc": "A pull_request_target job has secrets and executes a PR-head script. What is the risk?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "GitHub · Secure use",
+      "https://docs.github.com/en/actions/reference/security/secure-use"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q205": {
+    "title": "A deployment drops a column still read by the previous version. Is image rollback sufficient?",
+    "choices": [
+      "No: expand compatibly and migrate first; remove it only after old readers are retired.",
+      "Yes: containers automatically restore schemas.",
+      "Yes: readiness restores deleted data.",
+      "Yes: git revert restores database state."
+    ],
+    "answer": "Code rollback does not restore schema/data. Define compatibility, validated backfill and a rollback horizon before destructive contraction.",
+    "desc": "A deployment drops a column still read by the previous version. Is image rollback sufficient?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Applying EF Core migrations",
+      "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q206": {
+    "title": "Does minAvailable: 2 on three replicas guarantee two running replicas through every failure?",
+    "choices": [
+      "Yes: it instantly restores any failed Pod.",
+      "No: PDB limits supported voluntary evictions, not arbitrary node failure or every deletion.",
+      "Yes: it replaces replica topology placement.",
+      "Yes: it controls every Deployment action."
+    ],
+    "answer": "A disruption budget is not an availability SLA. Healthy replicas, placement, capacity and rollout policy still matter.",
+    "desc": "Does minAvailable: 2 on three replicas guarantee two running replicas through every failure?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Kubernetes · Disruptions",
+      "https://kubernetes.io/docs/concepts/workloads/pods/disruptions/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q207": {
+    "title": "An application never uses the Kubernetes API. What permissions should its ServiceAccount have?",
+    "choices": [
+      "Grant cluster-admin to avoid permission errors.",
+      "Allow listing all secrets for diagnostics.",
+      "Grant no unnecessary API capabilities, disable unneeded token automount and scope separate tasks minimally.",
+      "Treat namespaces as the only authorization mechanism."
+    ],
+    "answer": "Unused privileges increase compromise impact. Namespaces do not replace RBAC; token mounting and authorization are separate controls.",
+    "desc": "An application never uses the Kubernetes API. What permissions should its ServiceAccount have?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Kubernetes · RBAC good practices",
+      "https://kubernetes.io/docs/concepts/security/rbac-good-practices/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q208": {
+    "title": "After egress default-deny, database DNS lookup fails. What should be checked first?",
+    "choices": [
+      "Increase memory limits to restore DNS.",
+      "Disable readiness to unblock DNS.",
+      "Any ingress allow automatically enables all egress.",
+      "Policy enforcement support and actual DNS/DB endpoint rules; ingress and egress isolation are separate."
+    ],
+    "answer": "Both isolated endpoints may need explicit permissions. Include DNS/control dependencies; standard NetworkPolicy is not a universal FQDN firewall.",
+    "desc": "After egress default-deny, database DNS lookup fails. What should be checked first?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Kubernetes · Network policies",
+      "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q209": {
+    "title": "What does git revert -m 1 M select for merge commit M?",
+    "choices": [
+      "The first parent as mainline; it creates an inverse commit relative to that parent without removing history.",
+      "How many commits to delete.",
+      "The branch to reset.",
+      "How many conflict lines to retain."
+    ],
+    "answer": "Choose the parent from the graph, not the current branch name. Inspect parents/diffs and validate the resulting content.",
+    "desc": "What does git revert -m 1 M select for merge commit M?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Git · Revert",
+      "https://git-scm.com/docs/git-revert"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q210": {
+    "title": "After reverting a merge, must merging the same branch restore its reverted changes?",
+    "choices": [
+      "Yes: revert removed the parent from the graph.",
+      "No: merge ancestry remains; deliberately revert the revert or introduce corrected changes after inspecting diffs.",
+      "Yes: every merge replays all branch history.",
+      "Only force push always restores content safely."
+    ],
+    "answer": "Revert changes the tree, not merge ancestry. Reintroduction depends on the graph and subsequent changes.",
+    "desc": "After reverting a merge, must merging the same branch restore its reverted changes?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Git · Revert",
+      "https://git-scm.com/docs/git-revert"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q211": {
+    "title": "In Ports & Adapters, how does a port differ from an adapter?",
+    "choices": [
+      "A port is a TCP number and an adapter is a load balancer.",
+      "Every port requires a microservice.",
+      "A port describes an application interaction; an adapter connects it to a technology, not necessarily a network endpoint.",
+      "Business rules must depend on the UI adapter."
+    ],
+    "answer": "Inbound/outbound boundaries enable use-case isolation from real UI/storage without dictating deployment count.",
+    "desc": "In Ports & Adapters, how does a port differ from an adapter?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Alistair Cockburn · Ports and Adapters",
+      "https://alistair.cockburn.us/hexagonal-architecture/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q212": {
+    "title": "Are modular monoliths incompatible with event-driven interaction?",
+    "choices": [
+      "Yes: every event requires Kafka and another process.",
+      "Yes: monoliths require one shared mutable model.",
+      "No, but every module needs a separate physical database.",
+      "They are compatible: modularity, interactions and deployment topology are separate decisions with distinct costs."
+    ],
+    "answer": "One deployment can have module boundaries, ports and events. Distribution adds failure/operating costs rather than automatically creating modularity.",
+    "desc": "Are modular monoliths incompatible with event-driven interaction?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Common web application architectures",
+      "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q213": {
+    "title": "Does CQRS require separate databases and Event Sourcing?",
+    "choices": [
+      "No: read/write models and responsibilities are separated; shared storage is possible and Event Sourcing is independent.",
+      "Yes: it is otherwise impossible.",
+      "MediatR is mandatory.",
+      "CQRS means exactly one HTTP endpoint per table."
+    ],
+    "answer": "Model separation does not mandate a broker or an event log as the source of truth. Added complexity may be unjustified for simple CRUD.",
+    "desc": "Does CQRS require separate databases and Event Sourcing?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · CQRS",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q214": {
+    "title": "A command commits while its CQRS projection lags. What should clients be promised?",
+    "choices": [
+      "Instant consistency from every projection.",
+      "An explicit accepted-operation status and freshness contract: version/watermark, bounded wait or authoritative read when needed.",
+      "Repeat the command with new IDs until the query changes.",
+      "HTTP 200 automatically synchronizes all read models."
+    ],
+    "answer": "Write success and projection visibility are distinct boundaries. Do not fix lag by repeating side effects; define freshness and idempotency.",
+    "desc": "A command commits while its CQRS projection lags. What should clients be promised?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · CQRS",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q215": {
+    "title": "Must a Bounded Context equal one microservice and one table?",
+    "choices": [
+      "Yes: context is another name for a table.",
+      "Yes: DDD cannot exist in a monolith.",
+      "No: it bounds a consistent model/language; deployment and storage granularity are separate choices.",
+      "Every aggregate must become its own context."
+    ],
+    "answer": "A strategic model boundary differs from an aggregate or process; contexts can model the same term differently.",
+    "desc": "Must a Bounded Context equal one microservice and one table?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Martin Fowler · Bounded Context",
+      "https://martinfowler.com/bliki/BoundedContext.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q216": {
+    "title": "Does validating quantity>0 only in an HTTP DTO guarantee an aggregate invariant?",
+    "choices": [
+      "Yes: queues/batches never modify data.",
+      "Yes: public setters are safe after one validation.",
+      "Yes: naming a class AggregateRoot prevents races.",
+      "No: other entry points can mutate it; aggregate operations preserve invariants and concurrent persistence needs protection."
+    ],
+    "answer": "Input validation cannot replace model protection; in-memory invariants and concurrency between loaded copies require separate mechanisms.",
+    "desc": "Does validating quantity>0 only in an HTTP DTO guarantee an aggregate invariant?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Domain model invariants",
+      "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q217": {
+    "title": "Must domain events and integration events share one public serialized type?",
+    "choices": [
+      "No: internal model facts and external contracts may differ; coordinate publication with commit and compatibility.",
+      "Yes: otherwise DDD is violated.",
+      "Yes: serialize the entire EF entity.",
+      "No, because losing integration events after commit is acceptable."
+    ],
+    "answer": "A context need not expose its internals. Mapping supports language/evolution boundaries; outbox can coordinate state and publication.",
+    "desc": "Must domain events and integration events share one public serialized type?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Domain events",
+      "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q218": {
+    "title": "Application invokes IRepository implemented by Infrastructure. Is the dependency rule broken?",
+    "choices": [
+      "Yes: every outward runtime call is forbidden.",
+      "No, if the port belongs to an inner boundary and an outer adapter implements it; runtime calls differ from source dependencies.",
+      "No, but only if Domain references Infrastructure.csproj.",
+      "Yes: the DI container must live inside an entity."
+    ],
+    "answer": "Source references and execution flow differ. The composition root wires adapters without exposing concrete infrastructure to domain logic.",
+    "desc": "Application invokes IRepository implemented by Infrastructure. Is the dependency rule broken?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Robert C. Martin · Clean Architecture",
+      "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q219": {
+    "title": "Which contract better preserves an inner use-case boundary?",
+    "choices": [
+      "Expose IQueryable from a concrete EF DbSet without a lifetime contract.",
+      "Pass ControllerBase into an aggregate.",
+      "DTOs/values and owned ports without HttpContext or concrete DbContext, with explicit transaction/error semantics.",
+      "Hide EF in a Domain folder without changing references."
+    ],
+    "answer": "Folders do not enforce dependency direction. Boundaries should remain meaningful across adapter changes; layer count is not the goal.",
+    "desc": "Which contract better preserves an inner use-case boundary?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Robert C. Martin · Clean Architecture",
+      "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q220": {
+    "title": "Under Scrum Guide 2020, do one item’s acceptance criteria replace Definition of Done?",
+    "choices": [
+      "Yes: moving the card to Done is enough.",
+      "Yes: the Product Owner can declare unverified work complete.",
+      "DoD is a mandatory template only for testers.",
+      "No: item-specific acceptance and Increment-wide quality are different; work failing DoD is not Done."
+    ],
+    "answer": "DoD establishes transparent Increment quality; local acceptance agreements do not replace that commitment.",
+    "desc": "Under Scrum Guide 2020, do one item’s acceptance criteria replace Definition of Done?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Schwaber/Sutherland · Scrum Guide 2020",
+      "https://scrumguides.org/scrum-guide.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q221": {
+    "title": "An urgent request arrives mid-Sprint. What fits Scrum Guide 2020?",
+    "choices": [
+      "Discuss goals/risks and renegotiate scope with the Product Owner while preserving the Sprint Goal; an obsolete goal can lead to PO cancellation.",
+      "Silently add it on top of existing work.",
+      "Forbid every change regardless of context.",
+      "Turn Daily Scrum into a manager report and promise everything."
+    ],
+    "answer": "The Sprint Goal supplies focus rather than a frozen detailed list. Make urgency and capacity trade-offs explicit.",
+    "desc": "An urgent request arrives mid-Sprint. What fits Scrum Guide 2020?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Schwaber/Sutherland · Scrum Guide 2020",
+      "https://scrumguides.org/scrum-guide.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q222": {
+    "title": "What does a WIP limit provide in a Kanban system?",
+    "choices": [
+      "A guarantee that every task completes in exactly one day.",
+      "An explicit bound on started work; observe age, throughput and cycle time rather than only column colors.",
+      "An individual story-point quota.",
+      "A replacement for workflow boundaries and blocker management."
+    ],
+    "answer": "Explicit flow policies expose queues/blockers. WIP limits are not guaranteed SLAs and metrics depend on workflow boundaries.",
+    "desc": "What does a WIP limit provide in a Kanban system?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Kanban Guide · May 2025",
+      "https://kanbanguides.org/the-kanban-guide/2025.5/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q223": {
+    "title": "A team proposes individual productivity scores from commits and story points alone. Which response is justified?",
+    "choices": [
+      "More commits always mean more value.",
+      "Story points are standardized hours across teams.",
+      "They are gameable proxies; evaluate team outcomes, feedback, quality and sustainable flow in context.",
+      "Reviewing and helping others always reduce useful work."
+    ],
+    "answer": "Activity counts do not equal value. Define metric purposes and incentives while considering quality, collaboration and system constraints.",
+    "desc": "A team proposes individual productivity scores from commits and story points alone. Which response is justified?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Agile Manifesto · Principles",
+      "https://agilemanifesto.org/principles.html"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "Q224": {
+    "title": "What makes a blameless postmortem useful?",
+    "choices": [
+      "Only finding the guilty engineer.",
+      "Promising no future mistakes without system changes.",
+      "Hiding impact to protect metrics.",
+      "Impact/timeline, contributing system conditions and verifiable owned actions; no blame does not eliminate follow-through."
+    ],
+    "answer": "The purpose is learning and reducing recurrence through meaningful, owned, verifiable changes.",
+    "desc": "What makes a blameless postmortem useful?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Google SRE · Postmortem culture",
+      "https://sre.google/sre-book/postmortem-culture/"
+    ],
+    "origin": "Original documentation-based practice question, not a specific employer question."
+  },
+  "A91": {
+    "title": "SSRF review: safely fetching URL previews",
+    "desc": "An API accepts user URLs and fetches previews. The fragment intentionally has incomplete protection. Only agreed HTTPS hosts are allowed and metadata/internal services must be unreachable. Write prioritized findings, a corrected contract and a code/network sketch.",
+    "requirements": [
+      "Analyze parsing/canonicalization, scheme/port, DNS/IP, redirects and validation-to-connect races.",
+      "Define a finite allowlist and outbound proxy/egress policy; bound bytes, time and concurrency.",
+      "Provide allowed/blocked cases and simulated DNS/redirect changes without real requests.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "An allowed host redirects to an internal IP.",
+      "DNS changes after validation or resolves to private IPv6.",
+      "A server returns an endless or very slow body."
+    ],
+    "review": [
+      "String validation is not claimed as complete SSRF protection.",
+      "Controls the actual connection destination, not only a first lookup.",
+      "Bounds resources and avoids exposing internal responses/log data."
+    ],
+    "answer": "Define allowed host/scheme/port tuples and compare parsed canonical components. HTTPS alone does not establish trust. Disable automatic redirects or revalidate every hop. Resolving IPs and then letting HttpClient independently resolve again leaves a race; use controlled egress or a sound validated connection-binding mechanism preserving TLS hostname validation. Network restrictions complement application checks. Avoid universal-regex claims. Bound streaming bytes, end-to-end time and concurrency; Content-Length is insufficient. Return neutral errors rather than internal response bodies. Plan checks for IPv4/IPv6, redirects, DNS changes, ports, large/slow responses and allowed controls; define allowlist-change ownership.",
+    "hints": [
+      "The second DNS lookup may differ from the first."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "OWASP · SSRF prevention",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "review_code": "public sealed class PreviewClient(HttpClient client)\n{\n\tpublic async Task<byte[]> Fetch(string url, CancellationToken ct)\n\t{\n\t\tif (!url.StartsWith(\"https://\", StringComparison.OrdinalIgnoreCase))\n\t\t\tthrow new ArgumentException(\"https required\");\n\t\treturn await client.GetByteArrayAsync(url, ct);\n\t}\n}"
+  },
+  "A92": {
+    "title": "CI security: isolate PR checks from privileged deployment",
+    "desc": "The workflow executes an external PR script alongside a production token. Produce isolated PR-validation YAML and a separate trusted-promotion design. This configuration is a practice artifact, not something to execute.",
+    "requirements": [
+      "Mark event/code/credential trust boundaries and minimum permissions per job.",
+      "Remove secrets/deploy capabilities from untrusted code; trace artifact/cache paths into privileged workflows.",
+      "Specify action pinning, artifact provenance checks and scoped OIDC/environment conditions.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "A PR changes ci/check.sh or build scripts.",
+      "A job receives a similarly named foreign artifact.",
+      "Masking hides a secret in logs but the script exfiltrates it."
+    ],
+    "review": [
+      "Fixes trust boundaries rather than only event names.",
+      "Does not trust artifact names or untrusted-run caches.",
+      "Defines scoped permissions, immutable refs and deployment identity."
+    ],
+    "answer": "Use isolated unprivileged PR validation on safe ephemeral runners. Do not treat successful validation as automatic trust in its outputs. Trusted build/promotion uses approved refs and controlled identity/environment; validate transferred artifact run/commit, digest and provenance. A separate YAML or workflow_run event does not sanitize inputs. Scope GITHUB_TOKEN per job and pin actions to reviewed full SHAs. Restrict OIDC to intended repository/ref/environment and cloud permissions. Never combine privileged credentials with unchecked PR-head execution. Include caches/artifacts in supply-chain analysis and assess script modification, artifact substitution and branch-policy bypass; masking is not exfiltration prevention.",
+    "hints": [
+      "Executing build scripts is executing PR code."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "name: pr-check\non: pull_request_target\npermissions: write-all\njobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}\n      - run: ./ci/check.sh\n        env:\n          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}\n",
+    "source": [
+      "GitHub · Secure use",
+      "https://docs.github.com/en/actions/reference/security/secure-use"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system."
+  },
+  "A93": {
+    "title": "Release: immutable artifacts, schema migration and real rollback",
+    "desc": "Staging validated image digest D1. Production rebuilds latest, drops customer_name and deploys halfway while old Pods still read that column. Write the pipeline plan, migration sequence and stop/rollback runbook.",
+    "requirements": [
+      "Provide job/artifact flow and exact-digest evidence, separating environment configuration.",
+      "Define expand/backfill/compatible transition/contract with observable compatibility completion.",
+      "State gates, rollout signals, decision ownership, waiting limits and data rollback constraints.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "Canary writes a new format before rollback is requested.",
+      "Migration fails after partial backfill.",
+      "Approvals exist without digest/provenance verification."
+    ],
+    "review": [
+      "Promotes the same digest, not merely tag/commit.",
+      "Old/new Pods remain schema-compatible during rollout.",
+      "Code rollback is not claimed to recover dropped data."
+    ],
+    "answer": "Build once and promote D1 linked to source, checks and configuration. Separate build/deploy capabilities and risk gates; approvals do not prove artifact contents. Expand compatibly, run checkpointed idempotent backfill and validate it. Maintain old/new compatibility until old readers and the rollback window retire before dropping columns. Serialize conflicting releases/migrations. Judge canaries by business completion, errors, p99 and migration lag, not only readiness. If old code cannot read new data, image rollback needs a tested conversion/downgrade or fix-forward plan. Define stop/go ownership, planned commands and completion criteria.",
+    "hints": [
+      "Rollback must account for already-written data."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "GitHub · Deployment environments",
+      "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "references": [
+      [
+        "Microsoft · Applying EF Core migrations",
+        "https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying"
+      ]
+    ]
+  },
+  "A94": {
+    "title": "Kubernetes YAML: least privilege and replica resilience",
+    "desc": "The orders service never uses the Kubernetes API, but the starter grants cluster-admin to default ServiceAccount, runs one replica and uses a mutable image tag. Produce minimal corrected manifests for three replicas and a safe rollout plan. Justify resource budgets from measurements.",
+    "requirements": [
+      "Fix ServiceAccount/RBAC/token automount and securityContext without unnecessary powers.",
+      "Specify immutable image, resources, probes and graceful termination against app behavior.",
+      "Define topology/PDB for voluntary eviction and explain their limits.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "A node fails and PDB cannot prevent Pod loss.",
+      "The app needs writable temporary storage.",
+      "PreStop outlasts the grace period."
+    ],
+    "review": [
+      "An app without API access gets no cluster-admin or unnecessary token.",
+      "Probe/resource choices are justified rather than copied blindly.",
+      "Separates rollout strategy, topology and PDB limitations."
+    ],
+    "answer": "Remove the ClusterRoleBinding; use a dedicated account without unneeded token automount and no Role if the API is unused. Scope separate API jobs to exact namespace/resources/verbs. Pin image digests and select compatible nonprivileged settings, dropped capabilities and explicit writable volumes. Size requests/limits from load, throttling and OOM observations. Distribute replicas across failure domains with sufficient capacity. Distinguish readiness/startup/liveness; restarting all Pods because the database briefly failed can amplify incidents. Coordinate endpoint removal, drain and termination grace. PDB governs supported voluntary evictions rather than all failures/deletions or Deployment rollout. Provide expected outcomes for manifest/permission, rollout and failure checks.",
+    "hints": [
+      "Token mounting and authorization are separate controls."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: orders\n  namespace: shop\nspec:\n  replicas: 1\n  selector:\n    matchLabels: {app: orders}\n  template:\n    metadata:\n      labels: {app: orders}\n    spec:\n      serviceAccountName: default\n      containers:\n        - name: app\n          image: example.invalid/orders:latest\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: orders-admin\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: cluster-admin\nsubjects:\n  - kind: ServiceAccount\n    name: default\n    namespace: shop\n",
+    "source": [
+      "Kubernetes · RBAC good practices",
+      "https://kubernetes.io/docs/concepts/security/rbac-good-practices/"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "references": [
+      [
+        "Kubernetes · Disruptions",
+        "https://kubernetes.io/docs/concepts/workloads/pods/disruptions/"
+      ]
+    ]
+  },
+  "A95": {
+    "title": "NetworkPolicy: broken DNS and an overbroad database rule",
+    "desc": "The network plugin enforces NetworkPolicy. API Pods in shop may reach only the intended DNS service and PostgreSQL Pods in data on TCP 5432. The starter breaks lookup and allows more destinations than intended. Correct the YAML and supply a connectivity matrix.",
+    "requirements": [
+      "Explain OR across peer entries versus AND within a peer.",
+      "Specify actual DNS endpoints/ports for the chosen cluster rather than universal assumptions.",
+      "Account for isolated database ingress, other policies and FQDN/NAT limits.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "An unrelated data Pod listens on 5432.",
+      "The database also has ingress isolation.",
+      "The cluster uses NodeLocal DNSCache."
+    ],
+    "review": [
+      "Tightens rather than opens all egress for DNS.",
+      "Includes positive and negative connectivity cases.",
+      "Distinguishes standard policy semantics from CNI extensions."
+    ],
+    "answer": "The separate namespaceSelector and podSelector peers are OR. Put both in one peer to select database Pods specifically in data. Add narrow DNS access matching real topology and required protocols. NodeLocal DNS/NAT behavior is implementation-dependent; no single selector recipe is universal. Isolated destinations also need ingress permission. Policies are additive, so other broad allows can expand effective access. Standard NetworkPolicy is not arbitrary FQDN filtering. Specify a matrix permitting intended DNS/database traffic and blocking unrelated data Pods, namespaces and external destinations within plugin capabilities. Provide planned connectivity checks without running a cluster.",
+    "hints": [
+      "Two peer list entries are not two conditions within one peer."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: api-egress\n  namespace: shop\nspec:\n  podSelector:\n    matchLabels: {app: api}\n  policyTypes: [Egress]\n  egress:\n    - to:\n        - namespaceSelector:\n            matchLabels: {kubernetes.io/metadata.name: data}\n        - podSelector:\n            matchLabels: {app: postgres}\n      ports:\n        - {protocol: TCP, port: 5432}\n",
+    "source": [
+      "Kubernetes · Network policies",
+      "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system."
+  },
+  "A96": {
+    "title": "Git: revert a merge and reintroduce a corrected feature",
+    "desc": "Published merge M has parents B (previous main, first) and F2 (feature, second). Useful commit C follows M. Remove the feature while retaining C, then reintroduce its corrected version without rewriting shared history. Provide planned commands, graph and verification; do not execute them in this repository.",
+    "requirements": [
+      "Inspect parents/diffs and justify revert mainline; retaining C can still require conflict resolution.",
+      "Explain conflicts, abort/continue and intended-change verification.",
+      "Analyze subsequent merging and safe reintroduction options.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "C edits feature lines.",
+      "A new feature fix merges without restoring old changes.",
+      "The revert affects behavior not obvious from text."
+    ],
+    "review": [
+      "Chooses mainline from the graph without shared reset/force push.",
+      "Retains independent C changes through deliberate conflict resolution.",
+      "Accounts for retained ancestry and later commits."
+    ],
+    "answer": "Use a clean worktree and separate branch; inspect M parents and its diff from B. In this graph git revert -m 1 M creates an inverse commit after C. Resolve conflicts by intended behavior, not blind ours/theirs. Abort an unsuitable revert or continue after resolution. Verify content and behavior in your environment before a normal PR. M remains in ancestry, so merging the same branch does not replay every reverted change. Deliberately revert the inverse commit with fixes or introduce a corrected series accounting for C/dependencies. Show the final tree and graph as well as commands; verification is planned, not executed here.",
+    "hints": [
+      "Reverting tree changes does not remove parent links."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Git · Revert",
+      "https://git-scm.com/docs/git-revert"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system."
+  },
+  "A97": {
+    "title": "Architecture choice: layers, modules, ports and events",
+    "desc": "Four engineers own a B2B product: CRUD catalog, rule-heavy pricing and billing with an unreliable provider. Load is moderate and one deployment is acceptable. Proposals range from fifteen microservices to unrestricted shared DbContext access. Produce an ADR and boundary diagram.",
+    "requirements": [
+      "Compare layered, modular-monolith, ports/adapters and distributed/event-driven options in context.",
+      "Define data ownership/public module contracts, runtime paths and source dependencies.",
+      "Specify measurable extraction triggers, migration and operating costs.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "Billing stalls while catalog must remain available.",
+      "HTTP, batch and tests all invoke pricing.",
+      "Reporting needs data from several modules."
+    ],
+    "review": [
+      "Separates deployment topology, layers and interaction styles.",
+      "Bounds ownership/change rather than merely tables.",
+      "Provides a minimal design, alternatives and ADR revisit criteria."
+    ],
+    "answer": "A reasonable baseline is a modular monolith with owned data, explicit application contracts and no arbitrary cross-module writes. Isolate pricing rules behind ports with HTTP/batch adapters; simple catalog CRUD need not become a rich domain model. Bound billing resource use and use appropriate idempotent asynchronous delivery. Events can exist within one deployment but need explicit atomicity/failure semantics. Reporting can use its own projection or agreed query contracts. Extract a service for demonstrated ownership/deployment/scaling needs while accounting for network, consistency, observability and on-call costs. Record assumptions, alternatives and revisit triggers rather than ranking architectures universally.",
+    "hints": [
+      "Ports, CQRS and microservices describe different, potentially composable decisions."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Alistair Cockburn · Ports and Adapters",
+      "https://alistair.cockburn.us/hexagonal-architecture/"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system."
+  },
+  "A98": {
+    "title": "CQRS: last-item reservations with a lagging projection",
+    "desc": "Two clients reserve the last item. The write model is authoritative; a read model can lag three seconds and still shows stock=1. At most one reservation may succeed and clients must understand their own command outcome. Produce APIs, schema and command/query pseudocode.",
+    "requirements": [
+      "Enforce invariants and command idempotency independently of the read model.",
+      "Define response versions/status and bounded read-your-write behavior.",
+      "Handle replay/versioning/rebuild and compare shared versus separate storage.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "Both clients see one item but only one may reserve it.",
+      "The command response is lost after commit.",
+      "Projection v4 arrives after v5 or rebuild."
+    ],
+    "review": [
+      "Projection freshness does not authorize writes or new command IDs.",
+      "Write success does not promise immediate visibility everywhere.",
+      "Does not mandate Event Sourcing, MediatR or a broker."
+    ],
+    "answer": "Reserve carries stable operation identity and parameters. Atomically enforce available stock, record the result and delivery intent in the write transaction. Retries return the prior result; reject conflicting payload reuse. Query projections inform display rather than reservation validity. Return reservation identity/status and optionally write version; serve authoritative operation status or bounded projection-watermark waiting with explicit timeout. Apply old/repeated versions safely and rebuild with snapshot/catch-up. Start with separate models/handlers on one database where appropriate; additional storage adds lag/operations costs. Verify concurrent reserves, lost responses, reorder and rebuild. CQRS does not require Event Sourcing or a specific mediator library.",
+    "hints": [
+      "Displaying stock and accepting a reservation have different contracts."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Microsoft · CQRS",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "related": [
+      "Q213",
+      "Q214",
+      "A81",
+      "A110"
+    ]
+  },
+  "A99": {
+    "title": "DDD: context maps and differing Customer/Order meanings",
+    "desc": "An Order is a purchase agreement in Sales, a picking job in Fulfillment and invoicing input in Billing. A shared DTO grew to eighty nullable fields and a vendor changes statuses independently. Produce a context map and integration contracts.",
+    "requirements": [
+      "Define language/model ownership and upstream/downstream/anti-corruption relationships.",
+      "Provide owned identities/value objects and minimal versioned integration events instead of a shared EF graph.",
+      "Separate contexts, aggregates and deployment without entity-per-service slicing.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "The vendor renames a status without changing meaning.",
+      "Billing must not trust mutable prices from Fulfillment DTOs.",
+      "An event is duplicated or uses an older schema."
+    ],
+    "review": [
+      "Models differ semantically rather than only by namespace.",
+      "Mapping, ownership and compatibility are explicit.",
+      "Internal events do not accidentally become shared contracts."
+    ],
+    "answer": "Define Sales commercial terms/prices, Fulfillment execution and Billing monetary documents with owned rules. Link them through stable identities and agreed facts rather than mutable entities. Contexts can contain several aggregates and share a deployment. Translate vendor statuses through an anti-corruption adapter with explicit unknown-status behavior. Version integration contracts and verify compatibility/replay. Reliable publication and consumer idempotency are separate requirements. Avoid imposing one global Customer model. Deliver the context map, sample payloads and a compatible-change example.",
+    "hints": [
+      "A shared word does not imply a shared model."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Martin Fowler · Bounded Context",
+      "https://martinfowler.com/bliki/BoundedContext.html"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "references": [
+      [
+        "Microsoft · Domain events",
+        "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation"
+      ]
+    ]
+  },
+  "A100": {
+    "title": "Clean Architecture review: dependencies and use-case boundaries",
+    "desc": "Api, Application, Domain and Infrastructure projects exist. Domain references Infrastructure and persists through concrete EF; the handler accepts HttpContext. Produce a minimal refactoring plan, interfaces and reference graph preserving behavior.",
+    "requirements": [
+      "Separate source dependencies from runtime calls and define an acyclic composition root.",
+      "Place orchestration, persistence/time/provider ports and transport mapping at appropriate boundaries.",
+      "Specify invariants, transactions, errors and planned unit/integration checks without building.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "A background worker invokes the use case without HttpContext.",
+      "Database rollback follows an external HTTP side effect.",
+      "An interface still exposes concrete EF DbSet."
+    ],
+    "review": [
+      "Domain does not know concrete infrastructure.",
+      "Interfaces do not merely hide leaked technology semantics/types.",
+      "Does not claim one DB transaction makes HTTP atomic."
+    ],
+    "answer": "One reference graph is Application→Domain, Infrastructure→Application/Domain and Api→Application/Infrastructure for composition. Keep Infrastructure out of Domain references. Map transport identity/DTOs at entry; application orchestrates ports and transactions while domain operations preserve invariants. Concrete EF/HTTP remain adapters. Pass time as a value or an appropriate port rather than constructing infrastructure inside entities. Ports express required behavior rather than leaking DbSet. External side effects need independent idempotent coordination/outbox, not database rollback. Plan rule tests and adapter/transaction integration checks. Do not require one repository per table or maximal assembly counts: preserve useful isolation and contracts.",
+    "hints": [
+      "A DI container cannot automatically repair dependency direction."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Robert C. Martin · Clean Architecture",
+      "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "review_code": "// Domain project currently references Infrastructure.\npublic sealed class Order\n{\n\tpublic decimal Total { get; set; }\n\tpublic void Confirm()\n\t{\n\t\tusing var db = new Infrastructure.ShopDbContext();\n\t\tdb.Orders.Add(this);\n\t\tdb.SaveChanges();\n\t}\n}\n// Application entry point currently accepts HttpContext.\n"
+  },
+  "A101": {
+    "title": "Scrum/Kanban: Sprint Goal, urgent incidents and WIP",
+    "desc": "Four developers plan a two-week Sprint for safe refunds. Backlog includes core flow, audit, refactoring and UI. Support historically consumes 20–40% capacity; an incident and marketing request arrive mid-Sprint. Produce practical agreements rather than ceremony lists.",
+    "requirements": [
+      "Write a Sprint Goal, example DoD, item acceptance and a minimal uncertain scope forecast.",
+      "Use Scrum Guide 2020 accountabilities and scope/goal negotiation.",
+      "Define support workflow, WIP/expedite policies and flow metrics; compare Kanban without treating the methods as mutually exclusive.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "Unfinished audit is declared Done for reporting.",
+      "Expedite monopolizes the team.",
+      "Daily Scrum becomes manager task assignment."
+    ],
+    "review": [
+      "Does not silently sacrifice quality to meet forecasts.",
+      "Makes capacity and PO scope negotiations explicit.",
+      "Uses flow/WIP for work management rather than individual ranking."
+    ],
+    "answer": "Agree on one business goal and a minimal safe refund flow including required audit quality. Separate DoD from item acceptance and forecast against support-adjusted capacity. PO orders product backlog, Developers plan work and Scrum Master enables effective Scrum; Daily is not a manager report. Negotiate incident-driven scope changes without endangering the goal; the PO can cancel an obsolete Sprint. Define support start/finish, WIP, expedite limits and triage ownership; observe age, cycle time and throughput. Kanban practices may complement Scrum; a separate support flow is a contextual option. Deliver a concise plan, board policies and stakeholder forecast update rather than promising exact dates from average cycle time.",
+    "hints": [
+      "Forecast, Sprint Goal and quality commitments differ."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Schwaber/Sutherland · Scrum Guide 2020",
+      "https://scrumguides.org/scrum-guide.html"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "references": [
+      [
+        "Kanban Guide · May 2025",
+        "https://kanbanguides.org/the-kanban-guide/2025.5/"
+      ],
+      [
+        "Agile Manifesto · Principles",
+        "https://agilemanifesto.org/principles.html"
+      ]
+    ]
+  },
+  "A102": {
+    "title": "Team scenario: incident response, review disagreement and decision ownership",
+    "desc": "A release delays refunds. One engineer demands a technology rewrite, a reviewer blocks the PR without concrete findings and a manager ranks commit counts. Produce incident communication and a post-stabilization decision process.",
+    "requirements": [
+      "Draft stakeholder impact/unknowns/actions/owner/next-update communication.",
+      "Create a blameless timeline and two or three prioritized verifiable owned actions.",
+      "Write a constructive review comment and one-page RFC/ADR with options, evidence, experiment, owner and revisit criteria.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "People demand a culprit before the cause is known.",
+      "A new-technology prototype uses a different workload.",
+      "More commits do not improve cycle time or quality."
+    ],
+    "review": [
+      "Separates immediate recovery from long-term redesign.",
+      "Replaces blame with evidence while retaining action ownership.",
+      "Resolves disagreement through decisions rather than indefinite veto/activity metrics."
+    ],
+    "answer": "Contain impact and coordinate response first; communicate facts, uncertainty and the next checkpoint. Do not invent causes. After stabilization, document decisions/conditions and a few actions with measurable effects, such as reduced blast radius and validated rollback. Review comments should name risks, scenarios and minimal alternatives, separating correctness blockers from style preferences. Evaluate proposed technology on comparable workloads, migration/operating costs, skills and reversibility; assign a decision owner and timeboxed experiment. Activity counts do not replace value, quality or flow. Messages/documents are drafts in this exercise; nothing is sent to others.",
+    "hints": [
+      "Separate facts, hypotheses and decisions."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Google SRE · Postmortem culture",
+      "https://sre.google/sre-book/postmortem-culture/"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system."
+  },
+  "A103": {
+    "title": "DDD aggregate: reservation invariants and concurrent persistence",
+    "desc": "WarehouseStock exposes an Available setter and mutable reservation List. The controller validates positive quantity before mutating fields; another consumer skips validation. Two copies load concurrently. Design an aggregate API and persistence contract preserving Available>=0.",
+    "requirements": [
+      "Define root, entity identity and immutable value objects; prevent invariant-bypassing mutations.",
+      "Sketch Reserve/Release boundaries and domain events; separate entry validation from invariants.",
+      "Protect concurrent copies through versions/conditional writes and correct retry/idempotency.",
+      "Written practice: produce concrete changes/artifacts and a verification plan. Clusters, Git commands and pipelines are not automatically executed; the rubric is self-assessment."
+    ],
+    "cases": [
+      "Quantity is zero, negative or exceeds stock.",
+      "A reservation ID repeats with a different payload.",
+      "Two individually valid copies reserve the last stock concurrently."
+    ],
+    "review": [
+      "Aggregate is a consistency boundary, not the entire warehouse ORM graph.",
+      "Read-only collections do not expose mutable children.",
+      "In-memory invariants are not mistaken for commit concurrency protection."
+    ],
+    "answer": "Bound the aggregate by its invariant/access pattern rather than loading all warehouse history. Reserve enforces quantity, state and operation identity through root methods instead of setters/lists. Entities own stable identities; value objects have value equality and protected state. Return immutable snapshots/safe views rather than mutable child references. Persist with version checks or conditional atomic updates. On conflict, reload and re-evaluate the use case or reject clearly; do not blindly apply the operation twice. Store idempotency within the atomic boundary and separately coordinate external integration-event delivery. Plan boundary, repeated/conflicting payload and deterministic concurrent-save checks.",
+    "hints": [
+      "Individually valid objects can still conflict at commit."
+    ],
+    "kind": "Practice · analysis and solution",
+    "starter": "Contract and risks:\n\nConcrete changes / diagram / commands:\n\nReasoning and alternatives:\n\nFailures and recovery:\n\nVerification and expected results:\n",
+    "source": [
+      "Microsoft · Domain model invariants",
+      "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations"
+    ],
+    "origin": "Original practice scenario with explicitly defined constraints, not claims about an employer system.",
+    "references": [
+      [
+        "Martin Fowler · Bounded Context",
+        "https://martinfowler.com/bliki/BoundedContext.html"
+      ],
+      [
+        "Microsoft · Domain events",
+        "https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation"
+      ]
+    ]
+  },
+  "Q225": {
+    "title": "Full jitter with base=100 ms, cap=500 ms, retry #3 and u=0.25: what delay results?",
+    "choices": [
+      "100 ms: floor(min(500,100×2^(3−1))×0.25).",
+      "400 ms: jitter always adds positive noise.",
+      "500 ms: the cap replaces every delay.",
+      "75 ms: retry number multiplies the random sample."
+    ],
+    "answer": "This explicitly defined full-jitter algorithm caps the exponential ceiling before multiplying by u. It is not Polly v8’s exact decorrelated exponential-jitter formula.",
+    "kind": "Theory · single choice",
+    "desc": "Full jitter with base=100 ms, cap=500 ms, retry #3 and u=0.25: what delay results?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Polly v8 · Retry",
+      "https://www.pollydocs.org/strategies/retry.html"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "Q226": {
+    "title": "A GET returns Retry-After=5 seconds with 1.5 seconds left in the total deadline. What is appropriate?",
+    "choices": [
+      "Always retry in 1 ms and ignore Retry-After.",
+      "Do not start a retry that cannot fit the budget; finish under the deadline contract rather than unjustifiably shortening server delay.",
+      "Reset the deadline per retry and wait indefinitely.",
+      "Retry without a token to avoid timeout interference."
+    ],
+    "answer": "Total budget covers executions and waits. Retry-After does not grant extra time; stop when the allowed delay and another attempt cannot fit.",
+    "kind": "Theory · single choice",
+    "desc": "A GET returns Retry-After=5 seconds with 1.5 seconds left in the total deadline. What is appropriate?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Polly v8 · Retry",
+      "https://www.pollydocs.org/strategies/retry.html"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "Q227": {
+    "title": "A Circuit Breaker is open. What does Half-Open do?",
+    "choices": [
+      "Admit unlimited traffic for a load test.",
+      "Return successful business results without the dependency.",
+      "Admit controlled recovery probes; success can close the circuit and failure reopen it.",
+      "Replay every waiting request simultaneously."
+    ],
+    "answer": "Open short-circuits new executions; Half-Open controls recovery checks. The breaker does not define a safe fallback or prove existing side effects stopped.",
+    "kind": "Theory · single choice",
+    "desc": "A Circuit Breaker is open. What does Half-Open do?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Circuit Breaker pattern",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "Q228": {
+    "title": "Polly v8 has MinimumThroughput=20 over ten seconds. Eight sampled executions all fail. Must the circuit open?",
+    "choices": [
+      "Yes: the first failure always opens it.",
+      "Yes: MinimumThroughput is maximum RPS.",
+      "No: breakers never observe exceptions.",
+      "No: minimum throughput was not reached; a 100% failure ratio alone is insufficient."
+    ],
+    "answer": "Failure ratio, window and minimum sample size work together. Tune for actual traffic/lifetime; this differs from C53’s consecutive-failure model.",
+    "kind": "Theory · single choice",
+    "desc": "Polly v8 has MinimumThroughput=20 over ten seconds. Eight sampled executions all fail. Must the circuit open?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Polly v8 · Circuit breaker",
+      "https://www.pollydocs.org/strategies/circuit-breaker.html"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "Q229": {
+    "title": "With nesting Retry → Circuit Breaker → HTTP, what does the inner breaker normally observe?",
+    "choices": [
+      "Individual admitted attempts; reversed nesting lets an outer breaker observe the final retried operation.",
+      "Always only the last outcome regardless of order.",
+      "Only delays, never HTTP outcomes.",
+      "It automatically shares state across all API replicas."
+    ],
+    "answer": "Ordering changes observation units, latency and fail-fast behavior. Distinguish attempts from requests and avoid blindly retrying BrokenCircuitException.",
+    "kind": "Theory · single choice",
+    "desc": "With nesting Retry → Circuit Breaker → HTTP, what does the inner breaker normally observe?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Polly · Pipelines",
+      "https://www.pollydocs.org/pipelines/index.html"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "Q230": {
+    "title": "The circuit opens while previously started HTTP calls continue. Is that alone a breaker defect?",
+    "choices": [
+      "Yes: Open must physically roll back provider operations.",
+      "No: breakers gate new executions; timeouts/cancellation, concurrency limits and idempotency solve separate problems.",
+      "Yes: breakers guarantee zero in-flight concurrency.",
+      "No: rate limiters and breakers are the same pattern."
+    ],
+    "answer": "Circuit state is not transaction rollback or external-side-effect cancellation; define independent budgets and operation safety.",
+    "kind": "Theory · single choice",
+    "desc": "The circuit opens while previously started HTTP calls continue. Is that alone a breaker defect?",
+    "requirements": [
+      "Choose one best answer under the stated conditions."
+    ],
+    "cases": [],
+    "starter": "",
+    "hints": [],
+    "review": [],
+    "source": [
+      "Microsoft · Circuit Breaker pattern",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker"
+    ],
+    "origin": "Original retry/circuit-breaker question with explicitly stated algorithm assumptions."
+  },
+  "C52": {
+    "title": "Capped exponential backoff: deterministic full jitter",
+    "desc": "Implement pure BackoffMs: retryNumber starts at one and excludes the initial call. Return floor(min(capMs,baseDelayMs×2^(retryNumber−1))×unitRandom). Base/cap are positive integer milliseconds and unitRandom is finite in [0,1). No real waits or internal Random. This explicitly defined full jitter is not Polly v8’s exact jitter formula.",
+    "requirements": [
+      "Invalid retryNumber/base/cap/sample throws ArgumentOutOfRangeException.",
+      "Cap before jitter and floor; base may exceed cap.",
+      "Support int.MaxValue retry numbers without overflow or billions of iterations; stop growing once saturated."
+    ],
+    "cases": [
+      "First delay and doubling",
+      "Cap before jitter",
+      "Zero and floor",
+      "Large retry number without overflow",
+      "Delay arguments",
+      "Jitter arguments"
+    ],
+    "review": [
+      "Correct first-retry numbering and cap.",
+      "Controlled jitter without statistical assertions.",
+      "Safe int boundaries and NaN/Infinity handling."
+    ],
+    "answer": "Validate arguments, finite samples and 0<=u<1. Maintain a long ceiling starting at min(base,cap); double with saturation and stop once it reaches cap. Positive int caps require at most about 31 doublings, regardless of retryNumber. Return floor(ceiling*u). Base=100, cap=1000, u=.5 produces 50,100,200,400,500 ms for retries 1..5. A real retry loop separately needs classification, attempt bounds, cancellable waiting, Retry-After, idempotency and a total deadline. Full jitter may yield zero and need not grow monotonically.",
+    "hints": [
+      "Stop increasing the ceiling after saturation."
+    ],
+    "kind": "C# · checked practice",
+    "starter": "public static class Kata\n{\n\tpublic static int BackoffMs(int retryNumber, int baseDelayMs, int capMs, double unitRandom)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "Polly v8 · Retry",
+      "https://www.pollydocs.org/strategies/retry.html"
+    ],
+    "origin": "Original training scenario; simplified models are not represented as complete production Polly implementations.",
+    "related": [
+      "Q225",
+      "C05",
+      "A104",
+      "A111"
+    ]
+  },
+  "C53": {
+    "title": "Circuit Breaker: Closed/Open/Half-Open without Sleep",
+    "desc": "Implement a simplified synchronous breaker for sequential calls. Closed counts every callback exception; failureThreshold consecutive failures opens it for breakDuration. Success resets the count. Open throws CircuitOpenException without invoking the callback. At now>=openUntil the next operation probes: success closes, any error reopens for a full duration. Propagate the original callback exception object.",
+    "requirements": [
+      "Nonpositive threshold/duration throws ArgumentOutOfRangeException; null clock/operation throws ArgumentNullException.",
+      "Use injected nondecreasing time; rejected Open calls do not extend cooldown.",
+      "Keep instances independent and return operation values unchanged.",
+      "This is a sequential consecutive-failure model, not concurrent Half-Open, sliding-window ratio or async cancellation."
+    ],
+    "cases": [
+      "Successful result",
+      "Threshold and original exception",
+      "Success resets consecutive failures",
+      "Rejected calls do not extend Open",
+      "Probe at exact cooldown boundary",
+      "Failed probe reopens circuit",
+      "Instance isolation",
+      "Large cooldown without date overflow",
+      "Cooldown starts when the callback fails",
+      "Arguments"
+    ],
+    "review": [
+      "Fail-fast and boundary time are correct.",
+      "Separately handles reset and probe failure.",
+      "Does not claim a thread-safe production breaker."
+    ],
+    "answer": "Store failure count and openedAt; compare elapsed time with breakDuration to avoid date-add overflow for TimeSpan.MaxValue. An equivalent overflow-safe model is valid. Before execution reject Open calls before deadline; otherwise remember a recovery probe. Success clears state and returns the result. A probe failure immediately reopens; Closed failures increment and open at threshold. Use throw; to propagate the same exception. Cooldown starts at callback failure rather than callback entry; rejections never update it. Harness time advances without sleeping; state belongs to each instance. This model deliberately counts every callback exception; production predicates exclude inappropriate outcomes such as caller cancellation. Polly v8 instead uses sampling/ratio/minimum throughput, and concurrent probes require synchronization. Do not present the kata as a complete production implementation.",
+    "hints": [
+      "Recovery probes execute real operations rather than declaring success when a timer expires."
+    ],
+    "kind": "C# · checked practice",
+    "starter": "public sealed class CircuitOpenException : Exception { }\n\npublic sealed class CircuitBreaker\n{\n\tpublic CircuitBreaker(int failureThreshold, TimeSpan breakDuration, Func<DateTimeOffset> utcNow)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n\tpublic int Execute(Func<int> operation)\n\t{\n\t\tthrow new NotImplementedException();\n\t}\n}\n",
+    "source": [
+      "Microsoft · Circuit Breaker pattern",
+      "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker"
+    ],
+    "origin": "Original training scenario; simplified models are not represented as complete production Polly implementations.",
+    "related": [
+      "Q227",
+      "Q230",
+      "A105",
+      "A111"
+    ]
+  },
+  "A104": {
+    "title": "Polly v8 review: lifetime, jitter and strategy order",
+    "desc": "Three hundred API replicas call an idempotent catalog GET. The client is reused, but each call builds a new pipeline. Fix the fragment to bound load/deadlines, retain meaningful breaker state and avoid retrying caller cancellation. This is written review, not executable infrastructure.",
+    "requirements": [
+      "Draw nesting and breaker observation units; compare Retry→Breaker with Breaker→Retry contextually.",
+      "Define dependency-scoped state lifetime and jitter without assuming fleet-global state.",
+      "Separate attempt timeout, total deadline, attempt count, Retry-After and cancellation/open-circuit exclusions.",
+      "Provide corrected pseudocode and deterministic checks without real waiting/network."
+    ],
+    "cases": [
+      "Cancellation occurs during delay/HTTP.",
+      "All replicas receive 503 together.",
+      "Final outcomes hide many more physical backend attempts."
+    ],
+    "review": [
+      "State persists across calls.",
+      "Predicates do not blindly retry cancellation/open circuits.",
+      "Budgets, metrics and attempt units are explicit."
+    ],
+    "answer": "Addition order wraps strategies: the outer breaker here observes retried operation outcomes and the inner timeout covers attempts. Choose that intentionally; an inner breaker instead observes attempts. Per-call pipeline construction loses history; reuse dependency-scoped registry/client pipelines. Three retries allow four attempts. Handle classified transients without blindly retrying caller cancellation or BrokenCircuitException. Use jitter/caps and a total budget; Polly’s exponential jitter is not C52’s exact formula. Propagate callback tokens into HTTP/body reads and distinguish outer total timeout from attempt timeout. Cooperative timeout cannot stop ignored cancellation. Respect Retry-After within the remaining deadline. Client reuse and response disposal are already sound. Verify attempt counts, cancellation, observation units, open rejection and recovery; breakers do not independently cap in-flight work.",
+    "hints": [
+      "Lifetime and ordering change behavior even with plausible options."
+    ],
+    "kind": "Practice · scenario review",
+    "starter": "Prioritized findings:\n\nCorrected pipeline / nesting:\n\nTime and attempt budgets:\n\nState, metrics and verification:\n",
+    "source": [
+      "Polly · Pipelines",
+      "https://www.pollydocs.org/pipelines/index.html"
+    ],
+    "origin": "Original training scenario; simplified models are not represented as complete production Polly implementations.",
+    "review_code": "public async Task<string> GetCatalog(CancellationToken ct)\n{\n\tvar pipeline = new ResiliencePipelineBuilder<string>()\n\t\t.AddCircuitBreaker(new CircuitBreakerStrategyOptions<string>\n\t\t{\n\t\t\tFailureRatio = 0.5, MinimumThroughput = 8,\n\t\t\tSamplingDuration = TimeSpan.FromSeconds(10),\n\t\t\tBreakDuration = TimeSpan.FromSeconds(15)\n\t\t})\n\t\t.AddRetry(new RetryStrategyOptions<string>\n\t\t{\n\t\t\tMaxRetryAttempts = 3,\n\t\t\tBackoffType = DelayBackoffType.Exponential,\n\t\t\tUseJitter = false,\n\t\t\tShouldHandle = new PredicateBuilder<string>().Handle<Exception>()\n\t\t})\n\t\t.AddTimeout(TimeSpan.FromSeconds(2))\n\t\t.Build();\n\treturn await pipeline.ExecuteAsync(async token =>\n\t{\n\t\tusing var response = await client.GetAsync(\"catalog\", CancellationToken.None);\n\t\tresponse.EnsureSuccessStatusCode();\n\t\treturn await response.Content.ReadAsStringAsync();\n\t}, ct);\n}",
+    "related": [
+      "Q226",
+      "Q229",
+      "C52",
+      "A60",
+      "A90",
+      "A111"
+    ]
+  },
+  "A105": {
+    "title": "Operating Circuit Breakers: low traffic and recovery",
+    "desc": "A dependency receives two logical requests/s. Polly v8 uses a ten-second window, MinimumThroughput=100 and FailureRatio=.5. It rarely opens during failure. The team proposes marking every API Pod unready and rebuilding pipelines every second. Produce a diagnosis, configuration contract and recovery plan.",
+    "requirements": [
+      "Estimate samples and logical/physical units, including retries and instance scope.",
+      "Explain Closed/Open/Half-Open and bounded recovery traffic without stampedes.",
+      "Separate dependency degradation from API readiness and honest fallback semantics.",
+      "Define metrics, ownership and controlled-time verification."
+    ],
+    "cases": [
+      "Each Pod has its own traffic/state.",
+      "Opening the circuit does not stop previously started work.",
+      "Fallback invents a balance and returns 200."
+    ],
+    "review": [
+      "Explains insufficient throughput before changing ratio.",
+      "Does not prescribe reset/restart loops as dependency recovery.",
+      "Readiness/fallback reflect criticality without hiding business failure."
+    ],
+    "answer": "Two calls/s produce only about twenty logical samples per window, below the configured minimum. First establish actual handled execution units after retries and distribution across instances. Tune window/minimum/ratio from observations and false-positive costs. Resetting pipelines erases history and reintroduces traffic. Limit Half-Open recovery probes and assess fleet stampedes. Do not automatically remove all API capacity for one noncritical dependency. Fallbacks need honest stale/unknown contracts rather than fabricated monetary success. Combine breaker behavior with deadlines, concurrency/queue budgets and idempotency. Observe attempts, handled outcomes, samples, transitions, rejections, in-flight work and business completion. Checks remain a written plan without infrastructure execution.",
+    "hints": [
+      "MinimumThroughput counts window samples, not allowed RPS."
+    ],
+    "kind": "Practice · scenario review",
+    "starter": "Prioritized findings:\n\nCorrected pipeline / nesting:\n\nTime and attempt budgets:\n\nState, metrics and verification:\n",
+    "source": [
+      "Polly v8 · Circuit breaker",
+      "https://www.pollydocs.org/strategies/circuit-breaker.html"
+    ],
+    "origin": "Original training scenario; simplified models are not represented as complete production Polly implementations.",
+    "related": [
+      "Q227",
+      "Q228",
+      "Q230",
+      "C53",
+      "A12",
+      "A111"
+    ]
+  },
+  "Q231": {
+    "id": "Q231",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Can two EF Core queries use Task.WhenAll on one DbContext?",
+    "desc": "Can two EF Core queries use Task.WhenAll on one DbContext?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: await each, or use independent contexts with deliberate transaction boundaries.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "DbContext is not thread-safe. Sequential awaits preserve the unit of work; separate contexts do not automatically share a transaction. Project read DTOs and consider AsNoTracking; it does not fix concurrent access. Protect the invariant with an atomic conditional UPDATE or a concurrency token, handling DbUpdateConcurrencyException and rechecking funds. Inspect SQL, query count, rollback and conflicts on the target database.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A106"
+    ]
+  },
+  "A106": {
+    "id": "A106",
+    "engine": "review",
+    "minutes": 35,
+    "title": "EF Core: parallel queries and lost updates",
+    "desc": "A handler runs two queries on one scoped DbContext with Task.WhenAll, changes a balance without a concurrency token, and returns a tracked entity as a DTO. Rewrite the handler sketch and propose checks for two concurrent debits.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Two debits exceed the available balance; reading must not modify tracked state."
+    ],
+    "review": [
+      "No: await each, or use independent contexts with deliberate transaction boundaries.",
+      "Two debits exceed the available balance; reading must not modify tracked state."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "DbContext is not thread-safe. Sequential awaits preserve the unit of work; separate contexts do not automatically share a transaction. Project read DTOs and consider AsNoTracking; it does not fix concurrent access. Protect the invariant with an atomic conditional UPDATE or a concurrency token, handling DbUpdateConcurrencyException and rechecking funds. Inspect SQL, query count, rollback and conflicts on the target database.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q231"
+    ]
+  },
+  "Q232": {
+    "id": "Q232",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Does MediatR Publish guarantee delivery after a process crash?",
+    "desc": "Does MediatR Publish guarantee delivery after a process crash?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: it dispatches in process; durable delivery needs a separate solution.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "CQRS separates commands and queries without requiring MediatR, separate databases or Event Sourcing. Finish validation before side effects and define behavior ordering explicitly. Store the order and outbox in one transaction; use a worker and idempotent consumer for delivery. Publish is not a durable broker. Retrying the entire handler can duplicate email; require explicit idempotency and transaction boundaries. Propagate cancellation and distinguish commit from delivery.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A107"
+    ]
+  },
+  "A107": {
+    "id": "A107",
+    "engine": "review",
+    "minutes": 35,
+    "title": "MediatR: CQRS pipeline and external events",
+    "desc": "CreateOrder saves an order and calls Publish; a notification sends email and a Kafka event. A retry behavior wraps the entire handler. Design validation, transaction, logging and retry ordering; show the event path through a crash.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Crash after commit before Publish; repeat the command with the same key."
+    ],
+    "review": [
+      "No: it dispatches in process; durable delivery needs a separate solution.",
+      "Crash after commit before Publish; repeat the command with the same key."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "CQRS separates commands and queries without requiring MediatR, separate databases or Event Sourcing. Finish validation before side effects and define behavior ordering explicitly. Store the order and outbox in one transaction; use a worker and idempotent consumer for delivery. Publish is not a durable broker. Retrying the entire handler can duplicate email; require explicit idempotency and transaction boundaries. Propagate cancellation and distinguish commit from delivery.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q232"
+    ]
+  },
+  "Q233": {
+    "id": "Q233",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "How should a validator containing MustAsync be executed?",
+    "desc": "How should a validator containing MustAsync be executed?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "Use ValidateAsync with CancellationToken; a uniqueness precheck does not replace a database constraint.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Use ValidateAsync for both synchronous and asynchronous rules. Pass the token into the dependency; avoid Result/Wait and synchronous ASP.NET automatic validation for async rules. Guard expensive dependent checks when syntax is invalid using explicit cascade/conditions. Enforce uniqueness with a constraint and agreed email normalization; map an expected conflict to a domain/API error. Do not turn cancellation or database outages into “email taken”.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A108"
+    ]
+  },
+  "A108": {
+    "id": "A108",
+    "engine": "review",
+    "minutes": 35,
+    "title": "FluentValidation: async rules and a uniqueness race",
+    "desc": "Registration checks email using MustAsync but the endpoint calls Validate. Two requests pass the uniqueness precheck simultaneously. Sketch the validator and endpoint, error contract and tests.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Invalid syntax does not call the repository; cancellation; simultaneous registrations."
+    ],
+    "review": [
+      "Use ValidateAsync with CancellationToken; a uniqueness precheck does not replace a database constraint.",
+      "Invalid syntax does not call the repository; cancellation; simultaneous registrations."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Use ValidateAsync for both synchronous and asynchronous rules. Pass the token into the dependency; avoid Result/Wait and synchronous ASP.NET automatic validation for async rules. Guard expensive dependent checks when syntax is invalid using explicit cascade/conditions. Enforce uniqueness with a constraint and agreed email normalization; map an expected conflict to a domain/API error. Do not turn cancellation or database outages into “email taken”.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q233"
+    ]
+  },
+  "Q234": {
+    "id": "Q234",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "How should ConnectionMultiplexer be managed in a typical service?",
+    "desc": "How should ConnectionMultiplexer be managed in a typical service?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "Reuse a thread-safe instance with an appropriate lifetime instead of connecting on every GET.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Reuse the multiplexer; include tenant and contract version in keys. Define TTL, expiration jitter, size limits and negative caching. Local single-flight only coalesces within one process; fleet coordination needs a separate contract, and an expiring lock does not guarantee exactly-once execution. Bound database fallback load and timeouts; cache is not authoritative for monetary invariants. Explain the race between loading an old value and writing a new one: TTL only bounds staleness; stronger guarantees need versioning/write coordination.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A109"
+    ]
+  },
+  "A109": {
+    "id": "A109",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Redis: cache-aside, stampedes and tenant keys",
+    "desc": "Each request creates a ConnectionMultiplexer; product:42 is shared by every tenant and has no TTL. After eviction 200 replicas hit the database together. Design cache-aside and recovery during a Redis outage.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Tenant isolation; expiry stampede; Redis timeout; invalidation racing with cache fill."
+    ],
+    "review": [
+      "Reuse a thread-safe instance with an appropriate lifetime instead of connecting on every GET.",
+      "Tenant isolation; expiry stampede; Redis timeout; invalidation racing with cache fill."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Reuse the multiplexer; include tenant and contract version in keys. Define TTL, expiration jitter, size limits and negative caching. Local single-flight only coalesces within one process; fleet coordination needs a separate contract, and an expiring lock does not guarantee exactly-once execution. Bound database fallback load and timeouts; cache is not authoritative for monetary invariants. Explain the race between loading an old value and writing a new one: TTL only bounds staleness; stronger guarantees need versioning/write coordination.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q234"
+    ]
+  },
+  "Q235": {
+    "id": "Q235",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "When should an at-least-once consumer mark an offset as processed?",
+    "desc": "When should an at-least-once consumer mark an offset as processed?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "After the durable side effect succeeds; replay after a crash still requires idempotency.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "With EnableAutoOffsetStore=false, StoreOffset only after successful processing; automatic commits may remain enabled. Controlled manual commits are another option. Never advance past unfinished records in a partition: use a contiguous watermark and bounded per-partition processing. Handle lost assignment and commit/store errors during rebalance. Commit inbox deduplication and the business change in one database transaction so a crash before offset commit permits safe replay. Kafka transactions do not automatically make external PostgreSQL writes atomic. Define retry, quarantine/DLQ and audited skip policy explicitly.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A110"
+    ]
+  },
+  "A110": {
+    "id": "A110",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Confluent.Kafka: offsets, rebalance and inbox",
+    "desc": "A consumer with automatic offset storage launches Task.Run for every record and immediately continues Consume. It writes payments to PostgreSQL; rebalance causes missing and duplicate processing. Design a corrected loop and poison-message handling.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Crash after DB commit; offset 12 finishes before 11; partition revoked during processing."
+    ],
+    "review": [
+      "After the durable side effect succeeds; replay after a crash still requires idempotency.",
+      "Crash after DB commit; offset 12 finishes before 11; partition revoked during processing."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "With EnableAutoOffsetStore=false, StoreOffset only after successful processing; automatic commits may remain enabled. Controlled manual commits are another option. Never advance past unfinished records in a partition: use a contiguous watermark and bounded per-partition processing. Handle lost assignment and commit/store errors during rebalance. Commit inbox deduplication and the business change in one database transaction so a crash before offset commit permits safe replay. Kafka transactions do not automatically make external PostgreSQL writes atomic. Define retry, quarantine/DLQ and audited skip policy explicitly.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q235",
+      "A98"
+    ]
+  },
+  "Q236": {
+    "id": "Q236",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Why does a Polly timeout not guarantee that an HTTP callback stops?",
+    "desc": "Why does a Polly timeout not guarantee that an HTTP callback stops?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "Cancellation is cooperative: the callback must pass the pipeline token to operations.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "The nominal maximum is 1800 ms, exceeding the deadline. An outer total timeout bounds retries and delays; an inner timeout bounds attempts. Pass the token to I/O. Define transient predicates, jitter, Retry-After and remaining budget; do not blindly retry 400, caller cancellation or open-circuit rejection. Handle an inner TimeoutRejectedException separately from caller cancellation. Breaker placement determines attempt versus logical-outcome sampling. Retrying writes requires idempotency: timeout does not prove no side effect occurred.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A111"
+    ]
+  },
+  "A111": {
+    "id": "A111",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Polly: total deadlines and per-attempt timeouts",
+    "desc": "An API has a 900 ms deadline. A pipeline allows three 500 ms attempts with 100 and 200 ms delays; the callback ignores its token. Draw strategy nesting and build an outcome matrix for 429, timeout, cancellation, 400 and BrokenCircuitException.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Cancellation during backoff; Retry-After exceeds the remaining budget; response lost after commit."
+    ],
+    "review": [
+      "Cancellation is cooperative: the callback must pass the pipeline token to operations.",
+      "Cancellation during backoff; Retry-After exceeds the remaining budget; response lost after commit."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "The nominal maximum is 1800 ms, exceeding the deadline. An outer total timeout bounds retries and delays; an inner timeout bounds attempts. Pass the token to I/O. Define transient predicates, jitter, Retry-After and remaining budget; do not blindly retry 400, caller cancellation or open-circuit rejection. Handle an inner TimeoutRejectedException separately from caller cancellation. Breaker placement determines attempt versus logical-outcome sampling. Retrying writes requires idempotency: timeout does not prove no side effect occurred.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q236",
+      "A104",
+      "A105",
+      "C52",
+      "C53"
+    ]
+  },
+  "Q237": {
+    "id": "Q237",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "What preserves structured properties in Serilog?",
+    "desc": "What preserves structured properties in Serilog?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "A stable message template and property arguments, excluding sensitive data.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Use a stable template such as Order {OrderId} completed with id as an argument. Exclude tokens and raw bodies; prefer field allowlists/redaction to arbitrary {@Request}. Add trace/span correlation and a consistent scope; choose error ownership and severity, passing exceptions separately. Bound volume, retention and sink access; specify queue overflow behavior. Structured logging does not automatically sanitize data.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A112"
+    ]
+  },
+  "A112": {
+    "id": "A112",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Serilog: structured logs without token leakage",
+    "desc": "An endpoint writes Log.Information($\"Order {id}: {token}, {body}\") and logs the same exception at every layer. Rewrite logging and specify safe diagnostic checks.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Query by OrderId; no secrets; one exception does not create three duplicate error events."
+    ],
+    "review": [
+      "A stable message template and property arguments, excluding sensitive data.",
+      "Query by OrderId; no secrets; one exception does not create three duplicate error events."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Use a stable template such as Order {OrderId} completed with id as an argument. Exclude tokens and raw bodies; prefer field allowlists/redaction to arbitrary {@Request}. Add trace/span correlation and a consistent scope; choose error ownership and severity, passing exceptions separately. Bound volume, retention and sink access; specify queue overflow behavior. Structured logging does not automatically sanitize data.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q237"
+    ]
+  },
+  "Q238": {
+    "id": "Q238",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Should every metric use userId and orderId as labels?",
+    "desc": "Should every metric use userId and orderId as labels?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: cardinality is unbounded; IDs belong in protected logs/traces under an explicit contract.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Register and reuse ActivitySource/Meter and provider subscriptions. Inject/extract W3C context using agreed headers; create producer/consumer spans with deliberate parent/link semantics for batching and fan-out. Set resource service.name, route templates and bounded outcome labels; remove user/order IDs from metrics. Correlate logs using TraceId/SpanId and bound sampling/export queues; baggage must not carry secrets. Use an in-memory exporter to check spans, parent/link, tags, PII exclusion and unsampled behavior; traces are not a complete request counter.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A113"
+    ]
+  },
+  "A113": {
+    "id": "A113",
+    "engine": "review",
+    "minutes": 35,
+    "title": "OpenTelemetry: HTTP → Kafka → consumer",
+    "desc": "Traces stop at Kafka, a latency histogram contains userId, and logs are not correlated with spans. Design instrumentation and a propagation check without a real collector.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Independent traces stay separate; context crosses headers; cardinality stays bounded."
+    ],
+    "review": [
+      "No: cardinality is unbounded; IDs belong in protected logs/traces under an explicit contract.",
+      "Independent traces stay separate; context crosses headers; cardinality stays bounded."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Register and reuse ActivitySource/Meter and provider subscriptions. Inject/extract W3C context using agreed headers; create producer/consumer spans with deliberate parent/link semantics for batching and fan-out. Set resource service.name, route templates and bounded outcome labels; remove user/order IDs from metrics. Correlate logs using TraceId/SpanId and bound sampling/export queues; baggage must not carry secrets. Use an in-memory exporter to check spans, parent/link, tags, PII exclusion and unsampled behavior; traces are not a complete request counter.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q238",
+      "A18"
+    ]
+  },
+  "Q239": {
+    "id": "Q239",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Does xUnit share one test-class instance across all tests by default?",
+    "desc": "Does xUnit share one test-class instance across all tests by default?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: each test gets an instance; fixtures introduce shared context.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Remove ordering dependencies and mutable static state. Use Fact for individual scenarios and Theory for input/expected-output sets. Separate expensive fixture sharing from data isolation using unique schemas/keys or reliable reset. Use lifecycle interfaces for the chosen version: v2 IAsyncLifetime uses Task, while v3 uses its ValueTask/IAsyncDisposable contracts. Collections can restrict related-class parallelism but cannot repair contaminated data. Do not disable suite-wide parallelism without justification.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A114"
+    ]
+  },
+  "A114": {
+    "id": "A114",
+    "engine": "review",
+    "minutes": 35,
+    "title": "xUnit: async fixtures and independent tests",
+    "desc": "Tests use a static List and shared database fixture, rely on execution order and block async setup with .Result. Sketch xUnit tests using Fact/Theory and resource lifecycle; explicitly choose v2 or v3.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Single-test execution, reverse order and parallel classes agree; cleanup follows failures."
+    ],
+    "review": [
+      "No: each test gets an instance; fixtures introduce shared context.",
+      "Single-test execution, reverse order and parallel classes agree; cleanup follows failures."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Remove ordering dependencies and mutable static state. Use Fact for individual scenarios and Theory for input/expected-output sets. Separate expensive fixture sharing from data isolation using unique schemas/keys or reliable reset. Use lifecycle interfaces for the chosen version: v2 IAsyncLifetime uses Task, while v3 uses its ValueTask/IAsyncDisposable contracts. Collections can restrict related-class parallelism but cannot repair contaminated data. Do not disable suite-wide parallelism without justification.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q239",
+      "C48",
+      "C49"
+    ]
+  },
+  "Q240": {
+    "id": "Q240",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Does verifying a repository call prove SQL and transaction correctness?",
+    "desc": "Does verifying a repository call prove SQL and transaction correctness?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: a mock checks contract interactions; database behavior needs integration coverage.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Arrange explicit inputs and ReturnsAsync/ThrowsAsync; await Act and assert outcomes/invariants. Verify meaningful effects: no publication on failure, the correct token and the required write count. Avoid encoding internal read ordering without a business contract; use strict mocks deliberately. Model cancellation with a canceled task/token observation rather than success. Mocked IQueryable does not validate EF translation; integration tests cover transactions and SQL.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A115"
+    ]
+  },
+  "A115": {
+    "id": "A115",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Moq: handler behavior instead of brittle VerifyAll",
+    "desc": "A CreateOrder test checks VerifyAll and every internal call but neither result nor cancellation. Sketch three Moq tests: success, dependency failure and cancellation; explain unit-test limits.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Failure does not publish; token is passed; refactoring internal reads preserves contract tests."
+    ],
+    "review": [
+      "No: a mock checks contract interactions; database behavior needs integration coverage.",
+      "Failure does not publish; token is passed; refactoring internal reads preserves contract tests."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Arrange explicit inputs and ReturnsAsync/ThrowsAsync; await Act and assert outcomes/invariants. Verify meaningful effects: no publication on failure, the correct token and the required write count. Avoid encoding internal read ordering without a business contract; use strict mocks deliberately. Model cancellation with a canceled task/token observation rather than success. Mocked IQueryable does not validate EF translation; integration tests cover transactions and SQL.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q240",
+      "T08"
+    ]
+  },
+  "Q241": {
+    "id": "Q241",
+    "engine": "quiz",
+    "minutes": 3,
+    "title": "Is a running container enough to start an integration test?",
+    "desc": "Is a running container enough to start an integration test?",
+    "kind": "Theory · single choice",
+    "requirements": [
+      "Choose the single best answer."
+    ],
+    "choices": [
+      "Yes: async automatically synchronizes state and guarantees delivery.",
+      "No: readiness, schema setup and isolation are required; connect to the mapped port.",
+      "Adding Task.Run automatically provides all remaining guarantees.",
+      "Just suppress exceptions and always return success."
+    ],
+    "correct": 1,
+    "answer": "Choose a pinned image, dynamic host port and the container connection string; wait for service readiness instead of a fixed delay. Await StartAsync and migrations before testing. Isolate schemas/databases or reset with parallel classes in mind; a test transaction does not automatically roll back application writes on a separate connection. Dispose via async fixture lifecycle even after failure; inject a failure between two changes to verify rollback. Document Docker/CI requirements and readiness diagnostics. Testcontainers runs a real dependency, not a mock.",
+    "cases": [],
+    "review": [],
+    "hints": [],
+    "starter": "",
+    "related": [
+      "A116"
+    ]
+  },
+  "A116": {
+    "id": "A116",
+    "engine": "review",
+    "minutes": 35,
+    "title": "Testcontainers: PostgreSQL without fixed ports or sleeps",
+    "desc": "Integration tests use localhost:5432, Thread.Sleep(5000), shared orders and omit disposal. Sketch a PostgreSQL fixture and rollback test; do not run Docker here.",
+    "kind": "Practice · scenario review",
+    "requirements": [
+      "Propose corrected code or a design sketch and explain guarantee boundaries.",
+      "Provide concrete inputs, expected outcomes and failure checks. Code is not executed here."
+    ],
+    "cases": [
+      "Two parallel classes; cold start; failed migration; rollback of both changes."
+    ],
+    "review": [
+      "No: readiness, schema setup and isolation are required; connect to the mapped port.",
+      "Two parallel classes; cold start; failed migration; rollback of both changes."
+    ],
+    "hints": [
+      "Separate library mechanisms, business invariants and infrastructure guarantees."
+    ],
+    "answer": "Choose a pinned image, dynamic host port and the container connection string; wait for service readiness instead of a fixed delay. Await StartAsync and migrations before testing. Isolate schemas/databases or reset with parallel classes in mind; a test transaction does not automatically roll back application writes on a separate connection. Dispose via async fixture lifecycle even after failure; inject a failure between two changes to verify rollback. Document Docker/CI requirements and readiness diagnostics. Testcontainers runs a real dependency, not a mock.",
+    "starter": "Problems:\n\nCorrected code / design:\n\nScenarios and expected outcomes:\n\nLimitations:\n",
+    "related": [
+      "Q241",
+      "A28"
+    ]
   }
 }

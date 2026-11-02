@@ -408,5 +408,307 @@
     },
     "task_minutes": {},
     "oral": true
+  },
+  {
+    "id": "post-interview-recovery",
+    "title": {
+      "ru": "После интервью · закрыть пробелы · 60 минут",
+      "en": "After the interview · close the gaps · 60 minutes"
+    },
+    "description": {
+      "ru": "По записи: MVCC/VACUUM, индексы и блокировки, отказ Redis, Kafka, дедупликация миллиардов событий, bitmap/Bloom и ON CONFLICT. Устные мини-кейсы; новая постановка, а не копия вопросов техлида.",
+      "en": "Based on the recording: MVCC/VACUUM, indexes and locks, Redis outage, Kafka, billion-event deduplication, bitmap/Bloom and ON CONFLICT. Short verbal cases; newly written prompts, not a copy of the interviewer’s questions."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "A79",
+      "A77",
+      "A78",
+      "Q199",
+      "A12",
+      "Q171",
+      "Q098",
+      "A30",
+      "A80",
+      "Q200",
+      "A76",
+      "Q198",
+      "A81"
+    ],
+    "guide": {
+      "ru": [
+        "Сначала 90-секундная самопрезентация и один результат с источником метрики. Не подставляй выдуманные RPS.",
+        "Для каждого кейса отвечай: требования → механизм на конкретном расписании → инвариант → сбой → проверка. Не открывай разбор до своей попытки.",
+        "Интервьюер меняет порядок commit, число реплик, timestamp или горизонт replay. Сначала ответ без подсказки, затем отдельно отметить, что удалось только после уточнения.",
+        "Рисуй строки/страницы, расписания и битовые позиции. Если термин незнаком, обозначь это и рассуждай от заданных свойств.",
+        "57 минут — задания, 3 минуты — обратная связь. Разделяй доказанный пробел, непроверенный навык и возможную ошибку распознавания."
+      ],
+      "en": [
+        "Start with a 90-second introduction and one result with a metric source. Do not invent RPS.",
+        "For each case: requirements → mechanism on a concrete schedule → invariant → failure → verification. Do not reveal the explanation before attempting.",
+        "Vary commit order, replica count, timestamp or replay horizon. Record unassisted answers separately from answers reached after clarification.",
+        "Draw tuples/pages, timelines and bit positions. Admit unfamiliar terms and reason from the stated properties.",
+        "Use 57 minutes for tasks and three for feedback. Separate observed gaps, untested skills and possible ASR errors."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Повторное техническое интервью после разбора односторонней записи. Компания и точные вопросы техлида не воспроизводятся. Сначала защищаем опыт, затем проверяем причинную модель БД, кэша и доставки событий; решения обсуждаются вслух без запуска кода.",
+        "discussion": [
+          "Две транзакции читают и обновляют баланс: проследи snapshot, старые версии, VACUUM и блокировки.",
+          "Redis недоступен при 10 тысячах запросов и нескольких API-репликах: защити БД и ограничь ожидателей.",
+          "Consumer получает повторные события с большим горизонтом replay: рассчитай хранение, выбери routing, покажи точную дедупликацию и допустимую роль Bloom."
+        ],
+        "agenda": [
+          "4 мин — опыт и метрики.",
+          "14 мин — MVCC, физическое хранение, планы и locks.",
+          "10 мин — persistence Redis и отказ кэша.",
+          "7 мин — Kafka groups и crash windows outbox.",
+          "22 мин — большие объёмы, bitmap/Bloom и ON CONFLICT.",
+          "3 мин — разбор самостоятельных ответов и план повторения."
+        ]
+      },
+      "en": {
+        "premise": "A repeat technical interview after reviewing a one-sided recording. Neither the employer nor exact interviewer prompts are reproduced. Defend your experience, then explain database, caching and event-delivery mechanisms verbally without executing code.",
+        "discussion": [
+          "Trace snapshots, old tuple versions, VACUUM and locks across two balance transactions.",
+          "Redis fails under 10,000 requests and several API replicas: protect the database and bound waiters.",
+          "A consumer sees duplicates over a long replay horizon: estimate storage, choose routing, demonstrate exact deduplication and a safe Bloom-filter role."
+        ],
+        "agenda": [
+          "4 min — experience and metrics.",
+          "14 min — MVCC, storage, plans and locks.",
+          "10 min — Redis persistence and cache outage.",
+          "7 min — Kafka groups and outbox crash windows.",
+          "22 min — scale, bitmap/Bloom and ON CONFLICT.",
+          "3 min — unassisted-answer review and repetition plan."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A79": 4,
+      "A77": 7,
+      "A78": 7,
+      "Q199": 2,
+      "A12": 6,
+      "Q171": 2,
+      "Q098": 2,
+      "A30": 5,
+      "A80": 10,
+      "Q200": 2,
+      "A76": 3,
+      "Q198": 1,
+      "A81": 6
+    },
+    "oral": true
+  },
+  {
+    "id": "system-design-feed",
+    "title": {
+      "ru": "System design · лента подписок · 60 минут",
+      "en": "System design · subscription feed · 60 minutes"
+    },
+    "description": {
+      "ru": "Полный дизайн ленты, затем отдельный короткий расчёт восстановления очереди. Проверяем skew, приватность, fan-out и стоимость.",
+      "en": "Full feed design followed by a separate queue-recovery calculation. Covers skew, privacy, fan-out and cost."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "A83",
+      "A88"
+    ],
+    "guide": {
+      "ru": [
+        "Сначала согласуй требования и расчёты, затем нарисуй минимальную архитектуру и основной путь операции.",
+        "Разбор не открывать до самостоятельного ответа. Для каждой гарантии показать конкретный сценарий отказа и способ проверки.",
+        "Последние пять минут — обратная связь: корректность, расчёты, tradeoffs, эксплуатация и план эволюции. Рубрика — самооценка, не объективная проверка архитектуры.",
+        "Сначала основной кейс, затем отдельные follow-up упражнения. Их числовые условия независимы; не переноси цифры из одного задания в другое."
+      ],
+      "en": [
+        "Agree on requirements/estimates before drawing a minimal architecture and operation path.",
+        "Do not reveal explanations before answering. Demonstrate each guarantee through a failure scenario and verification.",
+        "Reserve the final five minutes for correctness, estimates, trade-offs, operations and evolution feedback. Rubrics are self-assessment, not objective architecture validation.",
+        "Discuss the main case before separate follow-up drills. Numerical conditions are independent; do not transfer numbers between tasks."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Нужно спроектировать хронологическую ленту с обычными и очень популярными авторами. Начни с A83; это самостоятельный учебный продукт, не реконструкция конкретной компании.",
+        "discussion": [
+          "Согласуй API, модель подписок и cursor; оцени fan-out amplification и выбери границу materialization.",
+          "Интервьюер закрывает опубликованный пост и задерживает удаление в очереди. Покажи, где предотвращается утечка.",
+          "После дизайна перейди к независимой разминке A88: net drain и age SLO, не подменяя условия ленты."
+        ],
+        "agenda": [
+          "8 мин — требования и оценки A83.",
+          "12 мин — API, модель данных и публикация.",
+          "15 мин — чтение, celebrity path, приватность и сбои.",
+          "10 мин — альтернативы, стоимость и эволюция ленты.",
+          "10 мин — независимый follow-up A88.",
+          "5 мин — обратная связь."
+        ]
+      },
+      "en": {
+        "premise": "Design a chronological feed for ordinary and celebrity authors. Start with A83; this is an original practice product, not a specific company reconstruction.",
+        "discussion": [
+          "Agree on APIs, subscriptions and cursors; estimate amplification and choose materialization boundaries.",
+          "The interviewer makes a published post private and delays deletion propagation. Show where leakage is prevented.",
+          "After the design, use A88 as a separate net-drain and age-SLO drill without changing feed assumptions."
+        ],
+        "agenda": [
+          "8 min — A83 requirements and estimates.",
+          "12 min — APIs, data model and publishing.",
+          "15 min — reads, celebrity path, privacy and failures.",
+          "10 min — feed alternatives, cost and evolution.",
+          "10 min — independent A88 follow-up.",
+          "5 min — feedback."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A83": 45,
+      "A88": 10
+    },
+    "oral": true
+  },
+  {
+    "id": "system-design-files",
+    "title": {
+      "ru": "System design · большие файлы · 60 минут",
+      "en": "System design · large files · 60 minutes"
+    },
+    "description": {
+      "ru": "Upload sessions, multipart, повтор finalize, quarantine и tenant isolation; затем границы gateway и повторов.",
+      "en": "Upload sessions, multipart, finalize retries, quarantine and tenant isolation, followed by gateway/retry boundaries."
+    },
+    "minutes": 60,
+    "task_ids": [
+      "A84",
+      "A90"
+    ],
+    "guide": {
+      "ru": [
+        "Сначала согласуй требования и расчёты, затем нарисуй минимальную архитектуру и основной путь операции.",
+        "Разбор не открывать до самостоятельного ответа. Для каждой гарантии показать конкретный сценарий отказа и способ проверки.",
+        "Последние пять минут — обратная связь: корректность, расчёты, tradeoffs, эксплуатация и план эволюции. Рубрика — самооценка, не объективная проверка архитектуры.",
+        "Сначала основной кейс, затем отдельные follow-up упражнения. Их числовые условия независимы; не переноси цифры из одного задания в другое."
+      ],
+      "en": [
+        "Agree on requirements/estimates before drawing a minimal architecture and operation path.",
+        "Do not reveal explanations before answering. Demonstrate each guarantee through a failure scenario and verification.",
+        "Reserve the final five minutes for correctness, estimates, trade-offs, operations and evolution feedback. Rubrics are self-assessment, not objective architecture validation.",
+        "Discuss the main case before separate follow-up drills. Numerical conditions are independent; do not transfer numbers between tasks."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Спроектируй B2B upload API для файлов до 50 GiB по условиям A84. Работодатель не задан; важны протокол, владение состоянием и восстановление после неизвестного исхода.",
+        "discussion": [
+          "Раздели data plane и control plane; защити временные полномочия и хранение частей.",
+          "Интервьюер теряет ответ Complete, повторяет callback и показывает чужой tenant key. Пройди state machine.",
+          "В конце независимый follow-up A90: сколько downstream попыток дают вложенные retries и где проходит граница доверия headers."
+        ],
+        "agenda": [
+          "8 мин — требования и ресурсный бюджет.",
+          "12 мин — API, session и multipart.",
+          "15 мин — finalize, crash windows и безопасность.",
+          "10 мин — lifecycle, стоимость и проверки.",
+          "10 мин — отдельный follow-up A90.",
+          "5 мин — обратная связь."
+        ]
+      },
+      "en": {
+        "premise": "Design a B2B API for up to 50 GiB files using A84. Focus on protocols, state ownership and uncertain outcomes; no employer is specified.",
+        "discussion": [
+          "Separate control/data planes and scope temporary permissions and parts.",
+          "Lose the Complete response, repeat callbacks and substitute another tenant key; trace the state machine.",
+          "Finish with independent A90 questions about nested retries and header trust."
+        ],
+        "agenda": [
+          "8 min — requirements and resource budget.",
+          "12 min — APIs, sessions and multipart.",
+          "15 min — finalize, crash windows and security.",
+          "10 min — lifecycle, cost and verification.",
+          "10 min — separate A90 follow-up.",
+          "5 min — feedback."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A84": 45,
+      "A90": 10
+    },
+    "oral": true
+  },
+  {
+    "id": "system-design-regions",
+    "title": {
+      "ru": "System design · регионы и владение данными · 75 минут",
+      "en": "System design · regions and data ownership · 75 minutes"
+    },
+    "description": {
+      "ru": "Кошелёк при network partition, fencing writer, затем replica freshness, перенос shard и распределённые квоты.",
+      "en": "Wallet network partitions and writer fencing, followed by replica freshness, shard migration and distributed quotas."
+    },
+    "minutes": 75,
+    "task_ids": [
+      "A87",
+      "A89",
+      "A86"
+    ],
+    "guide": {
+      "ru": [
+        "Сначала согласуй требования и расчёты, затем нарисуй минимальную архитектуру и основной путь операции.",
+        "Разбор не открывать до самостоятельного ответа. Для каждой гарантии показать конкретный сценарий отказа и способ проверки.",
+        "Последние пять минут — обратная связь: корректность, расчёты, tradeoffs, эксплуатация и план эволюции. Рубрика — самооценка, не объективная проверка архитектуры.",
+        "Сначала основной кейс, затем отдельные follow-up упражнения. Их числовые условия независимы; не переноси цифры из одного задания в другое."
+      ],
+      "en": [
+        "Agree on requirements/estimates before drawing a minimal architecture and operation path.",
+        "Do not reveal explanations before answering. Demonstrate each guarantee through a failure scenario and verification.",
+        "Reserve the final five minutes for correctness, estimates, trade-offs, operations and evolution feedback. Rubrics are self-assessment, not objective architecture validation.",
+        "Discuss the main case before separate follow-up drills. Numerical conditions are independent; do not transfer numbers between tasks."
+      ]
+    },
+    "scenario": {
+      "ru": {
+        "premise": "Основной кейс A87: два региона и противоречивые требования к списанию. Сначала сформулируй реализуемый контракт, затем дизайн. A89 и A86 — отдельные упражнения на переносимость решения.",
+        "discussion": [
+          "Объясни durability до ACK и выбор владельца; потеря связи не даёт права автоматически сделать второго writer.",
+          "После A87 независимо реши A89: свежесть чтения, routing и cutover, не обещая rollback одним DNS-переключением.",
+          "Заверши A86: сформулируй допустимый overshoot и режим отказа limiter без смешивания rate и concurrency."
+        ],
+        "agenda": [
+          "7 мин — требования A87 и конфликт ожиданий.",
+          "13 мин — write ownership, replication и ACK.",
+          "15 мин — partition, fencing, failover и эволюция.",
+          "20 мин — независимый A89: replicas и shard migration.",
+          "15 мин — независимый A86: quota и outage.",
+          "5 мин — обратная связь."
+        ]
+      },
+      "en": {
+        "premise": "A87 is the main two-region wallet case with conflicting requirements. Establish a feasible contract before design; A89/A86 separately test transfer of reasoning.",
+        "discussion": [
+          "Explain pre-ACK durability and ownership; lost connectivity does not automatically authorize a second writer.",
+          "Independently solve A89 for fresh reads, routing and cutover without DNS-only rollback promises.",
+          "Finish with A86: bounded overshoot and limiter outage behavior, separating rate from concurrency."
+        ],
+        "agenda": [
+          "7 min — A87 requirements and contradictions.",
+          "13 min — ownership, replication and ACK.",
+          "15 min — partition, fencing, failover and evolution.",
+          "20 min — independent A89 replica/migration case.",
+          "15 min — independent A86 quotas/outage case.",
+          "5 min — feedback."
+        ]
+      }
+    },
+    "task_minutes": {
+      "A87": 35,
+      "A89": 20,
+      "A86": 15
+    },
+    "oral": true
   }
 ]

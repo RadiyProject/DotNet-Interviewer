@@ -82,5 +82,29 @@
   "gamification": {
     "ru": "Геймификация",
     "en": "Gamification"
+  },
+  "cqrs": {
+    "ru": "CQRS",
+    "en": "CQRS"
+  },
+  "ddd": {
+    "ru": "DDD",
+    "en": "DDD"
+  },
+  "clean-architecture": {
+    "ru": "Clean Architecture",
+    "en": "Clean Architecture"
+  },
+  "teamwork": {
+    "ru": "Командная работа",
+    "en": "Teamwork"
+  },
+  "processes": {
+    "ru": "Процессы и методологии",
+    "en": "Processes & methodologies"
+  },
+  "resilience": {
+    "ru": "Отказоустойчивость",
+    "en": "Resilience"
   }
 }
