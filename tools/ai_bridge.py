@@ -209,10 +209,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(size))
             if self.path == '/extract-pdf': return self.reply({'text': extract_pdf(data.get('base64', ''))})
             if self.path == '/jobs':
-                if data.get('consent') is not True: raise ValueError('Explicit consent is required')
                 return self.reply(start_job(data), 202)
             if self.path != '/generate': return self.reply({'error': 'Not found'}, 404)
-            if data.get('consent') is not True: raise ValueError('Explicit consent to send the selected data through Codex is required')
             self.reply({'result': generate(data.get('mode'), data.get('context'))})
         except (ValueError, OSError, subprocess.SubprocessError) as error:
             self.reply({'error': str(error)}, 400)

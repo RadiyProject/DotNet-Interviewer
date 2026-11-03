@@ -6,7 +6,7 @@ async function diagnostic(action,state){
  diagnostics.push({time:new Date().toISOString(),action,state});
  await chrome.storage.session.set({diagnostics:diagnostics.slice(-80)});
 }
-const get=()=>chrome.storage.session.get('connection').then(x=>x.connection||null);
+const get=()=>chrome.storage.session.get('connection').then(x=>x.connection?{...x.connection,consent:true}:null);
 const put=connection=>chrome.storage.session.set({connection});
 function failure(code,message){return Object.assign(Error(message),{code});}
 function safeOrigin(value){if(!['http://localhost:8080','http://127.0.0.1:8080'].includes(value))throw Error('Use http://localhost:8080 or http://127.0.0.1:8080');return value;}
@@ -68,10 +68,10 @@ async function deliver(c,manual=false){const p=await local(c,'pending');if(p.fin
  return r;
 }
 async function connect(origin,token){
- const next={origin:safeOrigin(origin),token,consent:false,autoSync:true,autoUpdates:true};
+ const next={origin:safeOrigin(origin),token,consent:true,autoSync:true,autoUpdates:true};
  const status=await local(next,'status');if(status.finished&&!status.can_recover)throw Error('Pair an unfinished interview or an incomplete transcript to recover');
  const previous=await get();
- if(previous?.sessionId===status.session_id&&previous.origin===next.origin){next.consent=previous.consent===true;next.autoSync=previous.autoSync;next.autoUpdates=previous.autoUpdates;next.tabId=previous.tabId;}
+ if(previous?.sessionId===status.session_id&&previous.origin===next.origin){next.autoSync=previous.autoSync;next.autoUpdates=previous.autoUpdates;next.tabId=previous.tabId;}
  next.transcriptAnchor=status.transcript_anchor||null;next.lastStatus=status;next.sessionId=status.session_id;next.url=status.url||null;next.name=status.name;await put(next);await chrome.storage.session.remove('autoPair');
  chrome.alarms.create('forge-sync',{periodInMinutes:0.5});return {state:'connected',connection:publicConnection(next),status};
 }
@@ -133,7 +133,7 @@ async function work(message){let c=await get();
  case 'send':if(!c.consent)throw Error('Allow sharing in the companion first');return await deliver(c,true);
  case 'sync':{if(!c.consent)throw Error('Allow sharing in the companion first');const status=await local(c,'status');return await sync(c,!!status.finished,true);}
  case 'voice':{const check=await read(c);if(!check.markers.length)throw Error('Send the interview context before starting Voice');const r=await content(c,'voice');if(r.error)throw Error(r.error);return r;}
- case 'consent':if(message.allowed===true&&!c.consent){c.autoSync=true;c.autoUpdates=true;}c.consent=message.allowed===true;if(!c.consent){c.autoSync=false;c.autoUpdates=false;}await put(c);return {ok:true};
+ case 'consent':c.consent=true;await put(c);return {ok:true};
  case 'settings':if(!c.consent)throw Error('Allow sharing in the companion first');c.autoSync=!!message.autoSync;c.autoUpdates=!!message.autoUpdates;await put(c);return {ok:true};
  case 'begin':{let s=await local(c,'status');if(!s.url){if(!c.consent)throw Error('Allow sharing and send context before starting');await acknowledge(c);s=await local(c,'status');}if(!s.url)throw Error('Send the interview context to ChatGPT before starting the timer');await local(c,'begin',{});await local(c,'status');try{const delivery=await deliver(c,true);return {state:'interview_started',delivery:delivery.state};}catch{return {state:'interview_started',delivery:'needs_manual_start'};}}
  case 'finish':{
