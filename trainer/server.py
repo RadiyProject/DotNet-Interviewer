@@ -40,6 +40,7 @@ with connect() as db:
     db.executescript('''
     PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY, task_id TEXT NOT NULL, started REAL NOT NULL, deadline REAL NOT NULL, finished REAL, code TEXT NOT NULL DEFAULT '', result TEXT, revealed INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS quiz_pools(pool_key TEXT PRIMARY KEY, deadline REAL NOT NULL, attempt_ids TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS drafts(task_id TEXT PRIMARY KEY, code TEXT NOT NULL);
     ''')
 
@@ -224,6 +225,7 @@ class Handler(SimpleHTTPRequestHandler):
             with connect() as db:
                 attempts=[dict(r) for r in db.execute('SELECT * FROM attempts ORDER BY started DESC')]
                 drafts={r['task_id']:r['code'] for r in db.execute('SELECT * FROM drafts')}
+                pools=[dict(r) for r in db.execute('SELECT * FROM quiz_pools')]
             for a in attempts:
                 a['result']=json.loads(a['result']) if a['result'] else None
                 if a['result'] and a['finished']:
@@ -232,7 +234,7 @@ class Handler(SimpleHTTPRequestHandler):
                     if task and task['engine']=='quiz' and a['result'].get('quizFeedback'):
                         for i,feedback in enumerate(a['result']['quizFeedback']):
                             if i<len(task['choices']): feedback['text']=task['choices'][i]
-            return self.reply({'version':1,'attempts':attempts,'drafts':drafts,'serverTime':time.time()})
+            return self.reply({'version':1,'attempts':attempts,'drafts':drafts,'quizPools':pools,'serverTime':time.time()})
         if path.startswith('/api/'): return self.reply({'error':'Не найдено'},404)
         return super().do_GET()
     def do_POST(self):
@@ -335,6 +337,46 @@ class Handler(SimpleHTTPRequestHandler):
                     for k,v in p['drafts'].items():
                         if k in valid and isinstance(v,str): db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?)',(k,v[:100000]))
                 return self.reply({'ok':True})
+            if path in ('/api/quiz-pool-start','/api/quiz-pool-finish'):
+                ids=p.get('taskIds')
+                if not isinstance(ids,list) or not ids or len(ids)>1000 or any(not isinstance(x,str) for x in ids):
+                    return self.reply({'error':'Invalid question pool'},400)
+                ids=sorted(set(ids))
+                items=[find_task(x) for x in ids]
+                if any(not x or x['engine']!='quiz' for x in items):
+                    return self.reply({'error':'Only quiz questions are allowed'},400)
+                key=json.dumps(ids,separators=(',',':'))
+                now=time.time()
+                with connect() as db:
+                    db.execute('BEGIN IMMEDIATE')
+                    pool=db.execute('SELECT * FROM quiz_pools WHERE pool_key=?',(key,)).fetchone()
+                    if path=='/api/quiz-pool-finish':
+                        # Older question-by-question sessions have no pool record.
+                        attempts=json.loads(pool['attempt_ids']) if pool else {}
+                        for task in items:
+                            aid=attempts.get(task['id'])
+                            a=db.execute('SELECT * FROM attempts WHERE id=? AND task_id=?',(aid,task['id'])).fetchone() if aid else db.execute('SELECT * FROM attempts WHERE task_id=? ORDER BY started DESC LIMIT 1',(task['id'],)).fetchone()
+                            if not a:
+                                aid=uuid.uuid4().hex
+                                db.execute('INSERT INTO attempts(id,task_id,started,deadline) VALUES(?,?,?,?)',(aid,task['id'],now,now))
+                            else:
+                                aid=a['id']
+                            attempts[task['id']]=aid
+                            result={'status':'failed','score':0,'output':'Вопрос оставлен без отправленного ответа при завершении теста.','cases':[]}
+                            db.execute('UPDATE attempts SET finished=?,result=? WHERE id=? AND finished IS NULL',(now,json.dumps(result,ensure_ascii=False),aid))
+                        db.execute('INSERT OR REPLACE INTO quiz_pools VALUES(?,?,?)',(key,now,json.dumps(attempts)))
+                    pending=False
+                    if path=='/api/quiz-pool-start' and pool and pool['deadline']>now:
+                        pending=any(db.execute('SELECT 1 FROM attempts WHERE id=? AND finished IS NULL',(aid,)).fetchone() for aid in json.loads(pool['attempt_ids']).values())
+                    if path=='/api/quiz-pool-start' and not pending:
+                        deadline=now+sum(x['minutes']*60 for x in items)
+                        attempts={}
+                        for task in items:
+                            aid=uuid.uuid4().hex
+                            db.execute('INSERT INTO attempts(id,task_id,started,deadline) VALUES(?,?,?,?)',(aid,task['id'],now,deadline))
+                            attempts[task['id']]=aid
+                        db.execute('INSERT OR REPLACE INTO quiz_pools VALUES(?,?,?)',(key,deadline,json.dumps(attempts)))
+                return self.reply({'ok':True,'serverTime':now})
             t=find_task(p.get('taskId'),self.language)
             if not t: return self.reply({'error':'Неизвестная задача'},404)
             if path=='/api/draft':
